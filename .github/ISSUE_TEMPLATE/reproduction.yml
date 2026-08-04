@@ -1,0 +1,48 @@
+name: Reproduction issue
+description: Report a failure or mismatch in a paper experiment
+title: "[Reproduction]: "
+labels: [reproduction]
+body:
+  - type: dropdown
+    id: profile
+    attributes:
+      label: Profile
+      options:
+        - smoke
+        - paper
+        - custom configuration
+    validations:
+      required: true
+  - type: input
+    id: julia
+    attributes:
+      label: Julia version
+      placeholder: "1.11.x"
+    validations:
+      required: true
+  - type: input
+    id: experiment
+    attributes:
+      label: Experiment
+      placeholder: "03_discrete_continuous_bounds.jl"
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Exact command
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed result
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true

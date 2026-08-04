@@ -1,0 +1,20 @@
+[paper]
+sensor_count = 1
+heatmap_nx = 40
+heatmap_ny = 40
+heatmap_sigma_min = 0.1
+heatmap_sigma_max = 2.0
+heatmap_dt_min = 0.1
+heatmap_dt_max = 2.0
+
+[smoke]
+sensor_count = 1
+heatmap_nx = 4
+heatmap_ny = 4
+heatmap_sigma_min = 0.5
+heatmap_sigma_max = 2.0
+heatmap_dt_min = 0.25
+heatmap_dt_max = 1.0
+
+[smoke.domain]
+dx = 2.5

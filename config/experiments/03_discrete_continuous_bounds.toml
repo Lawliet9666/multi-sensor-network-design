@@ -1,0 +1,18 @@
+[paper]
+sensor_count = 1
+beta = 1.0
+bound_sample_count = 1000
+bound_steps = [0.05, 0.10, 0.15, 0.20, 0.25]
+
+[smoke]
+sensor_count = 1
+beta = 1.0
+bound_sample_count = 6
+bound_steps = [0.5]
+
+[smoke.domain]
+dx = 2.5
+
+[smoke.simulation]
+dt = 0.5
+horizon = 2.0

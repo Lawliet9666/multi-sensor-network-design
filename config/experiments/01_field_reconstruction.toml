@@ -1,0 +1,13 @@
+[paper]
+reconstruction_dx = 0.25
+reconstruction_sensors = 20
+snapshot_offset = 100
+
+[smoke]
+reconstruction_dx = 2.5
+reconstruction_sensors = 2
+snapshot_offset = 1
+
+[smoke.simulation]
+dt = 0.5
+horizon = 2.0

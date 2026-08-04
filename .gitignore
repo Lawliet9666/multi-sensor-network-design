@@ -1,0 +1,6 @@
+.DS_Store
+gr-temp/
+*.cov
+*.jl.cov
+*.jl.*.cov
+lcov.info

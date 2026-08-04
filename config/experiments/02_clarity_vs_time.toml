@@ -1,0 +1,12 @@
+[paper]
+estimate_sensors = [1, 6, 20]
+
+[smoke]
+estimate_sensors = [1, 2]
+
+[smoke.domain]
+dx = 2.5
+
+[smoke.simulation]
+dt = 0.5
+horizon = 2.0

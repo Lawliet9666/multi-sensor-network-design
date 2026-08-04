@@ -1,0 +1,9 @@
+[paper]
+grid_dx = [0.075, 0.10, 0.125, 0.15, 0.20, 0.25, 0.30, 0.40, 0.50]
+grid_sensors = [1, 10, 20, 30, 40, 50]
+grid_dt = 0.20
+
+[smoke]
+grid_dx = [2.5, 1.25]
+grid_sensors = [1, 2]
+grid_dt = 0.5

@@ -1,0 +1,16 @@
+[paper]
+trials = 30
+configuration_count = 10000
+sensor_targets = [0.5, 0.6, 0.7, 0.8, 0.9]
+
+[smoke]
+trials = 1
+configuration_count = 6
+sensor_targets = [0.5]
+
+[smoke.domain]
+dx = 2.5
+
+[smoke.simulation]
+dt = 0.5
+horizon = 2.0
