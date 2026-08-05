@@ -82,6 +82,27 @@ function load_experiment_config(
     return deep_merge_config(common, profiles[profile])
 end
 
+"""
+    measurement_std_at_step(reference_std, reference_step, step, fix_sigma_c)
+
+Return the per-measurement noise standard deviation at `step`. When
+`fix_sigma_c` is true, preserve the continuous-time noise intensity
+`sigma_c^2 = reference_step * reference_std^2`; otherwise preserve the
+per-measurement standard deviation `reference_std`.
+"""
+function measurement_std_at_step(
+    reference_std::Real, reference_step::Real, step::Real, fix_sigma_c::Bool,
+)
+    reference_std > 0 || throw(ArgumentError(
+        "Reference measurement noise must be positive.",
+    ))
+    reference_step > 0 || throw(ArgumentError(
+        "Reference sampling interval must be positive.",
+    ))
+    step > 0 || throw(ArgumentError("Sampling interval must be positive."))
+    return fix_sigma_c ? reference_std * sqrt(reference_step / step) : reference_std
+end
+
 function build_problem(
     config; dx=config["domain"]["dx"], dt=config["simulation"]["dt"], continuous=false,
 )

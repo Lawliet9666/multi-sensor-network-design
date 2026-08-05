@@ -2,7 +2,12 @@ include("common.jl")
 
 function compute_bound_at_step(config, step)
     sensor_count = config["sensor_count"]
-    measurement_std = config["measurement"]["std"]
+    measurement_std = measurement_std_at_step(
+        config["measurement"]["std"],
+        config["simulation"]["dt"],
+        step,
+        config["fix_sigma_c"],
+    )
 
     problem, _, _, _, _ = build_problem(config; dt=step)
     continuous_problem, _, _, _, _ = build_problem(
@@ -23,16 +28,10 @@ function compute_bound_at_step(config, step)
         beta=config["beta"],
     )
 
-    fixed_noise_rate = config["simulation"]["dt"] * measurement_std^2
-    continuous_std = sqrt(fixed_noise_rate / step)
-    continuous_covariance = continuous_std^2 * I(sensor_count)
-    continuous_models = precompute_sensor_configs(
-        problem, sensor_count, continuous_covariance,
-    )
     grid_count = length(problem.pts)
     A = I(grid_count) ⊗ continuous_problem.ss_model.A
     B = I(grid_count) ⊗ continuous_problem.ss_model.B
-    G = config["beta"] .* G_from_samples(continuous_models, grid_count, step)
+    G = config["beta"] .* G_from_samples(sensor_models, grid_count, step)
     continuous_bound = continuous_covariance_bound(A, G, B * B')
 
     return (
@@ -73,6 +72,10 @@ function main(arguments=ARGS)
     # Step 1: Prepare the experiment.
     context = experiment_context(arguments)
     begin_experiment(context)
+    noise_model = context.config["fix_sigma_c"] ?
+        "fixed sigma_c^2 (revised paper)" :
+        "fixed sigma_m (root_v2 paper)"
+    println("Measurement-noise model: $noise_model")
 
     # Step 2: Compute discrete and continuous bounds.
     rows = compute_bound_rows(context.config)

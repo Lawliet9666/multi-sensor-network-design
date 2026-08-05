@@ -31,7 +31,7 @@ export G_from_samples, G_analytic
 export precompute_sensor_configs, sample_point_sets
 export simulate_expected_covariance, expected_covariance, linear_operator
 export clarity_metrics, minimum_sensor_count
-export load_experiment_config, build_problem
+export load_experiment_config, measurement_std_at_step, build_problem
 export plot_field_reconstruction, plot_mean_clarity, plot_bound_comparison
 export plot_grid_convergence, plot_sensor_table_curve, plot_noise_rate_tradeoff
 

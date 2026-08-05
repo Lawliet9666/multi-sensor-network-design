@@ -67,10 +67,23 @@ end
     @test smoke["simulation"]["dt"] == 0.5
     @test paper["simulation"]["dt"] == 0.05
     @test paper["estimate_sensors"] == [1, 6, 20]
+    bound_config = load_experiment_config(
+        config_root, "03_discrete_continuous_bounds", "paper",
+    )
+    @test bound_config["fix_sigma_c"] === true
     @test_throws ArgumentError load_experiment_config(
         config_root, "02_clarity_vs_time", "unknown",
     )
     @test_throws ArgumentError load_experiment_config(
         config_root, "missing_experiment", "paper",
     )
+end
+
+@testset "Measurement-noise scaling" begin
+    @test measurement_std_at_step(2.0, 0.05, 0.05, true) ≈ 2.0
+    @test measurement_std_at_step(2.0, 0.05, 0.20, true) ≈ 1.0
+    @test measurement_std_at_step(2.0, 0.05, 0.20, false) ≈ 2.0
+    @test_throws ArgumentError measurement_std_at_step(0.0, 0.05, 0.20, true)
+    @test_throws ArgumentError measurement_std_at_step(2.0, 0.0, 0.20, true)
+    @test_throws ArgumentError measurement_std_at_step(2.0, 0.05, 0.0, true)
 end
