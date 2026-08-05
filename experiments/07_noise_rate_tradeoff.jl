@@ -1,34 +1,70 @@
 include("common.jl")
 
-function run_experiment(context)
-    begin_experiment(context)
-    config = context.config
+function compute_tradeoff_grid(config)
     problem, _, _, _, _ = build_problem(config; continuous=true)
     noise_variances = collect(range(
-        config["heatmap_sigma_min"]^2, config["heatmap_sigma_max"]^2;
+        config["heatmap_sigma_min"]^2,
+        config["heatmap_sigma_max"]^2;
         length=config["heatmap_nx"],
     ))
     steps = collect(range(
-        config["heatmap_dt_min"], config["heatmap_dt_max"];
+        config["heatmap_dt_min"],
+        config["heatmap_dt_max"];
         length=config["heatmap_ny"],
     ))
     sensor_count = config["sensor_count"]
     clarity = Matrix{Float64}(undef, length(steps), length(noise_variances))
+
     for (row, step) in enumerate(steps), (column, variance) in enumerate(noise_variances)
         metrics = clarity_metrics(problem, sensor_count, sqrt(variance), step)
         clarity[row, column] = metrics.mean_state_clarity
     end
 
-    data_path = joinpath(context.output, "data", "clarity_grid_Nr$(sensor_count).jld2")
-    data_path = write_jld2(
-        data_path; noise_variances=noise_variances, steps=steps, clarity=clarity,
-        sensor_count=sensor_count, seed=config["seed"],
+    return (; noise_variances, steps, clarity, sensor_count)
+end
+
+function save_tradeoff_data(context, result)
+    return write_jld2(
+        joinpath(
+            context.data_dir,
+            "clarity_grid_Nr$(result.sensor_count).jld2",
+        );
+        noise_variances=result.noise_variances,
+        steps=result.steps,
+        clarity=result.clarity,
+        sensor_count=result.sensor_count,
+        seed=context.config["seed"],
     )
-    figures = plot_noise_rate_tradeoff(
-        noise_variances, steps, clarity, sensor_count,
-        joinpath(context.output, "figures"),
+end
+
+function create_tradeoff_figures(context, result)
+    return plot_noise_rate_tradeoff(
+        result.noise_variances,
+        result.steps,
+        result.clarity,
+        result.sensor_count,
+        context.figure_dir,
     )
+end
+
+function main(arguments=ARGS)
+    # Step 1: Prepare the experiment.
+    context = experiment_context(arguments)
+    begin_experiment(context)
+
+    # Step 2: Compute the noise-rate tradeoff grid.
+    result = compute_tradeoff_grid(context.config)
+
+    # Step 3: Save numerical data.
+    data_path = save_tradeoff_data(context, result)
+
+    # Step 4: Create figures.
+    figures = create_tradeoff_figures(context, result)
+
+    # Step 5: Report saved outputs.
     return complete_experiment(context, [data_path, figures.svg, figures.pdf])
 end
 
-abspath(PROGRAM_FILE) == (@__FILE__) && run_experiment(experiment_context())
+if abspath(PROGRAM_FILE) == @__FILE__
+    main()
+end

@@ -1,29 +1,69 @@
 include("common.jl")
 
-function run_experiment(context)
-    begin_experiment(context)
-    config = context.config
+function compute_clarity_curves(config)
+    problem, xs, ys, data = make_field(config; seed=config["seed"])
     curves = Dict{String, Vector{Float64}}()
-    times = nothing
-    data_paths = String[]
+    sensor_results = NamedTuple[]
+
     for sensor_count in config["estimate_sensors"]
-        problem, xs, ys, data = make_field(config; seed=config["seed"])
+        run_seed = config["seed"] + sensor_count
         clarity, _ = run_filter(
-            problem, xs, ys, data, sensor_count, config["measurement"]["std"],
-            config["seed"] + sensor_count,
+            problem,
+            xs,
+            ys,
+            data,
+            sensor_count,
+            config["measurement"]["std"],
+            run_seed,
         )
         label = sensor_count == 1 ? "1 sensor" : "$sensor_count sensors"
         curves[label] = clarity
-        times = data.ts
-        path = joinpath(context.output, "data", "mean_clarity_Nr$(sensor_count).jld2")
-        path = write_jld2(
-            path; times=data.ts, mean_clarity=clarity, sensor_count=sensor_count,
-            seed=config["seed"] + sensor_count,
-        )
-        push!(data_paths, path)
+        push!(sensor_results, (; sensor_count, clarity, run_seed))
     end
-    figures = plot_mean_clarity(times, curves, joinpath(context.output, "figures"))
+
+    return (; times=data.ts, curves, sensor_results)
+end
+
+function save_clarity_curves(context, result)
+    paths = String[]
+    for sensor_result in result.sensor_results
+        path = write_jld2(
+            joinpath(
+                context.data_dir,
+                "mean_clarity_Nr$(sensor_result.sensor_count).jld2",
+            );
+            times=result.times,
+            mean_clarity=sensor_result.clarity,
+            sensor_count=sensor_result.sensor_count,
+            seed=sensor_result.run_seed,
+        )
+        push!(paths, path)
+    end
+    return paths
+end
+
+function create_clarity_figures(context, result)
+    return plot_mean_clarity(result.times, result.curves, context.figure_dir)
+end
+
+function main(arguments=ARGS)
+    # Step 1: Prepare the experiment.
+    context = experiment_context(arguments)
+    begin_experiment(context)
+
+    # Step 2: Compute one clarity curve per sensor count.
+    result = compute_clarity_curves(context.config)
+
+    # Step 3: Save numerical data.
+    data_paths = save_clarity_curves(context, result)
+
+    # Step 4: Create figures.
+    figures = create_clarity_figures(context, result)
+
+    # Step 5: Report saved outputs.
     return complete_experiment(context, [data_paths; figures.svg; figures.pdf])
 end
 
-abspath(PROGRAM_FILE) == (@__FILE__) && run_experiment(experiment_context())
+if abspath(PROGRAM_FILE) == @__FILE__
+    main()
+end

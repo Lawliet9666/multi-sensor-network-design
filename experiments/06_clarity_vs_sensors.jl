@@ -1,45 +1,87 @@
 include("common.jl")
 
-function run_experiment(context)
-    begin_experiment(context)
-    config = context.config
+function compute_sensor_case(
+    config,
+    continuous_problem,
+    problem,
+    data,
+    sensor_count,
+    index,
+)
+    metrics = clarity_metrics(
+        continuous_problem,
+        sensor_count,
+        config["measurement"]["std"],
+        config["simulation"]["dt"],
+    )
+    simulation_seed = config["seed"] + 20_000 * index
+    point_sets = sample_point_sets(
+        MersenneTwister(simulation_seed),
+        problem.pts,
+        sensor_count;
+        configuration_count=config["configuration_count"],
+    )
+    covariance = config["measurement"]["std"]^2 * I(sensor_count)
+    expected = simulate_expected_covariance(
+        problem,
+        data,
+        point_sets,
+        config["measurement"]["std"],
+        covariance;
+        trials=config["trials"],
+        seed=simulation_seed,
+    )
+    return (
+        N_robots=sensor_count,
+        mean_field_variance=metrics.mean_field_variance,
+        max_field_variance=metrics.max_field_variance,
+        bound_clarity=metrics.mean_field_clarity,
+        empirical_clarity=mean(get_clarity(problem, last(expected))),
+    )
+end
+
+function compute_sensor_curve(config)
     continuous_problem, _, _, _, _ = build_problem(config; continuous=true)
     problem, _, _, data = make_field(config; seed=config["seed"])
-    rows = NamedTuple[]
+    return [
+        compute_sensor_case(
+            config,
+            continuous_problem,
+            problem,
+            data,
+            sensor_count,
+            index,
+        )
+        for (index, sensor_count) in enumerate(config["sensor_curve"])
+    ]
+end
 
-    for (index, sensor_count) in enumerate(config["sensor_curve"])
-        metrics = clarity_metrics(
-            continuous_problem, sensor_count, config["measurement"]["std"],
-            config["simulation"]["dt"],
-        )
-        point_sets = sample_point_sets(
-            MersenneTwister(config["seed"] + 20_000 * index), problem.pts, sensor_count;
-            configuration_count=config["configuration_count"],
-        )
-        covariance = config["measurement"]["std"]^2 * I(sensor_count)
-        expected = simulate_expected_covariance(
-            problem, data, point_sets, config["measurement"]["std"], covariance;
-            trials=config["trials"], seed=config["seed"] + 20_000 * index,
-        )
-        push!(rows, (
-            N_robots=sensor_count,
-            mean_field_variance=metrics.mean_field_variance,
-            max_field_variance=metrics.max_field_variance,
-            bound_clarity=metrics.mean_field_clarity,
-            empirical_clarity=mean(get_clarity(problem, last(expected))),
-        ))
-    end
+function save_sensor_curve(context, rows)
+    return write_csv(joinpath(context.data_dir, "clarity_vs_sensors.csv"), rows)
+end
 
-    data_path = joinpath(context.output, "data", "clarity_vs_sensors.csv")
-    write_csv(
-        data_path,
-        ["N_robots", "mean_field_variance", "max_field_variance",
-         "bound_clarity", "empirical_clarity"],
-        [[row.N_robots, row.mean_field_variance, row.max_field_variance,
-          row.bound_clarity, row.empirical_clarity] for row in rows],
-    )
-    figures = plot_sensor_table_curve(rows, joinpath(context.output, "figures"))
+function create_sensor_curve_figures(context, rows)
+    return plot_sensor_table_curve(rows, context.figure_dir)
+end
+
+function main(arguments=ARGS)
+    # Step 1: Prepare the experiment.
+    context = experiment_context(arguments)
+    begin_experiment(context)
+
+    # Step 2: Compute clarity for every sensor count.
+    rows = compute_sensor_curve(context.config)
+
+    # Step 3: Save numerical data.
+    data_path = save_sensor_curve(context, rows)
+
+    # Step 4: Create figures.
+    figures = create_sensor_curve_figures(context, rows)
+
+    # Step 5: Report saved outputs.
     return complete_experiment(context, [data_path, figures.svg, figures.pdf])
 end
 
-abspath(PROGRAM_FILE) == (@__FILE__) && run_experiment(experiment_context())
+if abspath(PROGRAM_FILE) == @__FILE__
+    main()
+end

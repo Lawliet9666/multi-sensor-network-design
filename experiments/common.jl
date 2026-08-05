@@ -64,20 +64,27 @@ function experiment_context(arguments=ARGS)
     output_root = isnothing(requested_output) ?
         joinpath(REPOSITORY_ROOT, "results", experiment, "$profile-$stamp") :
         requested_output
+    output = abspath(output_root)
+    data_dir = joinpath(output, "data")
+    figure_dir = joinpath(output, "figures")
+    config_dir = joinpath(output, "configs")
     config = load_experiment_config(config_root, experiment, profile)
-    mkpath(joinpath(output_root, "data"))
-    mkpath(joinpath(output_root, "figures"))
+    mkpath(data_dir)
+    mkpath(figure_dir)
     return (
         experiment=experiment,
         profile=profile,
         config=config,
-        output=abspath(output_root),
+        output=output,
+        data_dir=data_dir,
+        figure_dir=figure_dir,
+        config_dir=config_dir,
         config_root=config_root,
     )
 end
 
 function write_resolved_config(context)
-    path = joinpath(context.output, "configs", "$(context.experiment).toml")
+    path = joinpath(context.config_dir, "$(context.experiment).toml")
     mkpath(dirname(path))
     open(path, "w") do stream
         TOML.print(stream, context.config; sorted=true)
@@ -124,6 +131,20 @@ function write_csv(path, header, rows)
     absolute_path = abspath(path)
     println("Saved data (CSV): $absolute_path")
     return absolute_path
+end
+
+function write_csv(path, rows)
+    isempty(rows) && error("Cannot write an empty CSV result.")
+    columns = propertynames(first(rows))
+    all(row -> propertynames(row) == columns, rows) || error(
+        "CSV rows do not have consistent columns.",
+    )
+    # Preserve the existing CSV representation for mixed integer/float rows.
+    values = (
+        promote((getproperty(row, column) for column in columns)...)
+        for row in rows
+    )
+    return write_csv(path, string.(columns), values)
 end
 
 function write_jld2(path; kwargs...)
