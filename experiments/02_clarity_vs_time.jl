@@ -2,7 +2,7 @@ include("common.jl")
 
 function compute_clarity_curves(config)
     problem, xs, ys, data = make_field(config; seed=config["seed"])
-    curves = Dict{String, Vector{Float64}}()
+    curves = Dict{Int, Vector{Float64}}()
     sensor_results = NamedTuple[]
 
     for sensor_count in config["estimate_sensors"]
@@ -13,11 +13,10 @@ function compute_clarity_curves(config)
             ys,
             data,
             sensor_count,
-            config["measurement"]["std"],
+            experiment_measurement_std(config),
             run_seed,
         )
-        label = sensor_count == 1 ? "1 sensor" : "$sensor_count sensors"
-        curves[label] = clarity
+        curves[sensor_count] = clarity
         push!(sensor_results, (; sensor_count, clarity, run_seed))
     end
 

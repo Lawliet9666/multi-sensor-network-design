@@ -2,6 +2,7 @@ include("common.jl")
 
 function simulate_empirical_clarity(config, sensor_count, seed_offset)
     problem, _, _, data = make_field(config; seed=config["seed"])
+    measurement_std = experiment_measurement_std(config)
     simulation_seed = config["seed"] + seed_offset
     point_sets = sample_point_sets(
         MersenneTwister(simulation_seed),
@@ -9,12 +10,12 @@ function simulate_empirical_clarity(config, sensor_count, seed_offset)
         sensor_count;
         configuration_count=config["configuration_count"],
     )
-    covariance = config["measurement"]["std"]^2 * I(sensor_count)
+    covariance = measurement_std^2 * I(sensor_count)
     expected = simulate_expected_covariance(
         problem,
         data,
         point_sets,
-        config["measurement"]["std"],
+        measurement_std,
         covariance;
         trials=config["trials"],
         seed=simulation_seed,
@@ -23,10 +24,11 @@ function simulate_empirical_clarity(config, sensor_count, seed_offset)
 end
 
 function compute_sensor_table_row(config, continuous_problem, target, index)
+    measurement_std = experiment_measurement_std(config)
     metrics = minimum_sensor_count(
         continuous_problem,
         target,
-        config["measurement"]["std"],
+        measurement_std,
         config["simulation"]["dt"],
     )
     empirical = simulate_empirical_clarity(

@@ -41,8 +41,8 @@ const EXPERIMENT_DETAILS = Dict(
         purpose="Compare analytic and empirical clarity across sensor counts.",
     ),
     "07_noise_rate_tradeoff" => (
-        title="Measurement-noise and sensing-rate tradeoff",
-        purpose="Evaluate the clarity bound over measurement-noise variance and sampling rate.",
+        title="Noise-model and sampling-interval sweep",
+        purpose="Evaluate the clarity bound over the configured noise parameter and sampling interval.",
     ),
 )
 
@@ -94,6 +94,28 @@ function write_resolved_config(context)
     return absolute_path
 end
 
+function experiment_measurement_std(config, step=config["simulation"]["dt"])
+    measurement = config["measurement"]
+    return measurement_std_at_step(
+        measurement["std"],
+        measurement["sigma_c_squared"],
+        step,
+        measurement["fix_sigma_c"],
+    )
+end
+
+function measurement_noise_description(context)
+    measurement = context.config["measurement"]
+    if context.experiment == "07_noise_rate_tradeoff"
+        return measurement["fix_sigma_c"] ?
+            "fixed sigma_c^2 within each sweep case (revised paper)" :
+            "fixed sigma_m within each sweep case (root_v2 paper)"
+    end
+    return measurement["fix_sigma_c"] ?
+        "fixed sigma_c^2 = $(measurement["sigma_c_squared"]) (revised paper)" :
+        "fixed sigma_m = $(measurement["std"]) (root_v2 paper)"
+end
+
 function begin_experiment(context)
     details = get(EXPERIMENT_DETAILS, context.experiment, (
         title=context.experiment,
@@ -106,6 +128,7 @@ function begin_experiment(context)
     println("Purpose: $(details.purpose)")
     println("Output directory: $(context.output)")
     write_resolved_config(context)
+    println("Measurement-noise model: $(measurement_noise_description(context))")
     return details
 end
 

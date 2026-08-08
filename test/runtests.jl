@@ -43,16 +43,22 @@ end
     config = load_experiment_config(
         config_root, "04_grid_convergence", "smoke",
     )
+    measurement_std = measurement_std_at_step(
+        config["measurement"]["std"],
+        config["measurement"]["sigma_c_squared"],
+        config["grid_dt"],
+        config["measurement"]["fix_sigma_c"],
+    )
     problem, _, _, _, _ = build_problem(config; continuous=true)
     one_sensor = clarity_metrics(
-        problem, 1, config["measurement"]["std"], config["grid_dt"],
+        problem, 1, measurement_std, config["grid_dt"],
     )
     two_sensors = clarity_metrics(
-        problem, 2, config["measurement"]["std"], config["grid_dt"],
+        problem, 2, measurement_std, config["grid_dt"],
     )
     @test two_sensors.mean_field_clarity > one_sensor.mean_field_clarity
     @test minimum_sensor_count(
-        problem, 0.5, config["measurement"]["std"], config["grid_dt"],
+        problem, 0.5, measurement_std, config["grid_dt"],
     ).sensor_count >= 1
 end
 
@@ -70,7 +76,24 @@ end
     bound_config = load_experiment_config(
         config_root, "03_discrete_continuous_bounds", "paper",
     )
-    @test bound_config["fix_sigma_c"] === true
+    @test bound_config["measurement"]["fix_sigma_c"] === true
+    @test bound_config["measurement"]["sigma_c_squared"] == 0.2
+    @test bound_config["measurement"]["std"]^2 *
+          bound_config["simulation"]["dt"] ≈
+          bound_config["measurement"]["sigma_c_squared"]
+    experiment_names = [
+        "01_field_reconstruction",
+        "02_clarity_vs_time",
+        "03_discrete_continuous_bounds",
+        "04_grid_convergence",
+        "05_sensor_number_table",
+        "06_clarity_vs_sensors",
+        "07_noise_rate_tradeoff",
+    ]
+    @test all(experiment_names) do experiment
+        config = load_experiment_config(config_root, experiment, "paper")
+        config["measurement"]["fix_sigma_c"] === true
+    end
     @test_throws ArgumentError load_experiment_config(
         config_root, "02_clarity_vs_time", "unknown",
     )
@@ -80,10 +103,10 @@ end
 end
 
 @testset "Measurement-noise scaling" begin
-    @test measurement_std_at_step(2.0, 0.05, 0.05, true) ≈ 2.0
-    @test measurement_std_at_step(2.0, 0.05, 0.20, true) ≈ 1.0
-    @test measurement_std_at_step(2.0, 0.05, 0.20, false) ≈ 2.0
-    @test_throws ArgumentError measurement_std_at_step(0.0, 0.05, 0.20, true)
+    @test measurement_std_at_step(2.0, 0.2, 0.05, true) ≈ 2.0
+    @test measurement_std_at_step(2.0, 0.2, 0.20, true) ≈ 1.0
+    @test measurement_std_at_step(2.0, 0.2, 0.20, false) ≈ 2.0
+    @test_throws ArgumentError measurement_std_at_step(0.0, 0.2, 0.20, true)
     @test_throws ArgumentError measurement_std_at_step(2.0, 0.0, 0.20, true)
-    @test_throws ArgumentError measurement_std_at_step(2.0, 0.05, 0.0, true)
+    @test_throws ArgumentError measurement_std_at_step(2.0, 0.2, 0.0, true)
 end

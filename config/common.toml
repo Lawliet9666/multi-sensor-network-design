@@ -17,4 +17,8 @@ dt = 0.05
 horizon = 120.0
 
 [measurement]
+# Revised paper: fix sigma_c^2 and derive sigma_m^2 = sigma_c^2 / Delta t.
+# Set fix_sigma_c = false to keep the root_v2 per-measurement std instead.
+fix_sigma_c = true
+sigma_c_squared = 0.2
 std = 2.0

@@ -2,6 +2,7 @@
 sensor_count = 1
 heatmap_nx = 40
 heatmap_ny = 40
+# sigma_c range when fix_sigma_c=true; sigma_m range otherwise.
 heatmap_sigma_min = 0.1
 heatmap_sigma_max = 2.0
 heatmap_dt_min = 0.1
@@ -11,6 +12,7 @@ heatmap_dt_max = 2.0
 sensor_count = 1
 heatmap_nx = 4
 heatmap_ny = 4
+# sigma_c range when fix_sigma_c=true; sigma_m range otherwise.
 heatmap_sigma_min = 0.5
 heatmap_sigma_max = 2.0
 heatmap_dt_min = 0.25

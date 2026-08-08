@@ -1,13 +1,14 @@
 include("common.jl")
 
 function compute_grid_case(config, dx, sensor_count)
+    measurement_std = experiment_measurement_std(config, config["grid_dt"])
     problem, _, _, _, _ = build_problem(
         config; dx=dx, dt=config["grid_dt"], continuous=true,
     )
     metrics = clarity_metrics(
         problem,
         sensor_count,
-        config["measurement"]["std"],
+        measurement_std,
         config["grid_dt"],
     )
     return (
@@ -15,7 +16,7 @@ function compute_grid_case(config, dx, sensor_count)
         dx=dx,
         N_robots=sensor_count,
         dt=config["grid_dt"],
-        measurement_std=config["measurement"]["std"],
+        measurement_std=measurement_std,
         mean_state_variance=metrics.mean_state_variance,
         max_state_variance=metrics.max_state_variance,
         clarity=metrics.mean_state_clarity,

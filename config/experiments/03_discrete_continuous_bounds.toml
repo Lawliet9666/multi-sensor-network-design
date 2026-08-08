@@ -3,16 +3,12 @@ sensor_count = 1
 beta = 1.0
 bound_sample_count = 1000
 bound_steps = [0.05, 0.10, 0.15, 0.20, 0.25]
-# true: fix sigma_c^2 = Delta t * sigma_m^2 (revised paper).
-# false: fix sigma_m at measurement.std (root_v2 paper).
-fix_sigma_c = true
 
 [smoke]
 sensor_count = 1
 beta = 1.0
 bound_sample_count = 6
 bound_steps = [0.5]
-fix_sigma_c = true
 
 [smoke.domain]
 dx = 2.5

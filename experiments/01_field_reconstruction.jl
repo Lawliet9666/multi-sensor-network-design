@@ -6,7 +6,7 @@ function compute_reconstruction(config)
     capture_index = max(1, length(data.ts) - config["snapshot_offset"])
     clarity, captured = run_filter(
         problem, xs, ys, data, config["reconstruction_sensors"],
-        config["measurement"]["std"], config["seed"] + 100;
+        experiment_measurement_std(config), config["seed"] + 100;
         capture_index=capture_index,
     )
     isnothing(captured) && error("The requested reconstruction state was not captured.")

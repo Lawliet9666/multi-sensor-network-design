@@ -8,10 +8,11 @@ function compute_sensor_case(
     sensor_count,
     index,
 )
+    measurement_std = experiment_measurement_std(config)
     metrics = clarity_metrics(
         continuous_problem,
         sensor_count,
-        config["measurement"]["std"],
+        measurement_std,
         config["simulation"]["dt"],
     )
     simulation_seed = config["seed"] + 20_000 * index
@@ -21,12 +22,12 @@ function compute_sensor_case(
         sensor_count;
         configuration_count=config["configuration_count"],
     )
-    covariance = config["measurement"]["std"]^2 * I(sensor_count)
+    covariance = measurement_std^2 * I(sensor_count)
     expected = simulate_expected_covariance(
         problem,
         data,
         point_sets,
-        config["measurement"]["std"],
+        measurement_std,
         covariance;
         trials=config["trials"],
         seed=simulation_seed,

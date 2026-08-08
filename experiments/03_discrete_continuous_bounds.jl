@@ -2,12 +2,7 @@ include("common.jl")
 
 function compute_bound_at_step(config, step)
     sensor_count = config["sensor_count"]
-    measurement_std = measurement_std_at_step(
-        config["measurement"]["std"],
-        config["simulation"]["dt"],
-        step,
-        config["fix_sigma_c"],
-    )
+    measurement_std = experiment_measurement_std(config, step)
 
     problem, _, _, _, _ = build_problem(config; dt=step)
     continuous_problem, _, _, _, _ = build_problem(
@@ -72,10 +67,6 @@ function main(arguments=ARGS)
     # Step 1: Prepare the experiment.
     context = experiment_context(arguments)
     begin_experiment(context)
-    noise_model = context.config["fix_sigma_c"] ?
-        "fixed sigma_c^2 (revised paper)" :
-        "fixed sigma_m (root_v2 paper)"
-    println("Measurement-noise model: $noise_model")
 
     # Step 2: Compute discrete and continuous bounds.
     rows = compute_bound_rows(context.config)

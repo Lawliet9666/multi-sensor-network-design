@@ -83,24 +83,23 @@ function load_experiment_config(
 end
 
 """
-    measurement_std_at_step(reference_std, reference_step, step, fix_sigma_c)
+    measurement_std_at_step(fixed_std, sigma_c_squared, step, fix_sigma_c)
 
 Return the per-measurement noise standard deviation at `step`. When
-`fix_sigma_c` is true, preserve the continuous-time noise intensity
-`sigma_c^2 = reference_step * reference_std^2`; otherwise preserve the
-per-measurement standard deviation `reference_std`.
+`fix_sigma_c` is true, use `sigma_m^2 = sigma_c_squared / step`;
+otherwise preserve the per-measurement standard deviation `fixed_std`.
 """
 function measurement_std_at_step(
-    reference_std::Real, reference_step::Real, step::Real, fix_sigma_c::Bool,
+    fixed_std::Real, sigma_c_squared::Real, step::Real, fix_sigma_c::Bool,
 )
-    reference_std > 0 || throw(ArgumentError(
-        "Reference measurement noise must be positive.",
+    fixed_std > 0 || throw(ArgumentError(
+        "Fixed measurement noise must be positive.",
     ))
-    reference_step > 0 || throw(ArgumentError(
-        "Reference sampling interval must be positive.",
+    sigma_c_squared > 0 || throw(ArgumentError(
+        "Continuous-time noise intensity must be positive.",
     ))
     step > 0 || throw(ArgumentError("Sampling interval must be positive."))
-    return fix_sigma_c ? reference_std * sqrt(reference_step / step) : reference_std
+    return fix_sigma_c ? sqrt(sigma_c_squared / step) : fixed_std
 end
 
 function build_problem(

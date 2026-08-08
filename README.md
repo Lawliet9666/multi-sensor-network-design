@@ -40,7 +40,7 @@ Single-experiment outputs are saved under
 | `04_grid_convergence.jl`           | Grid-convergence study                      |
 | `05_sensor_number_table.jl`        | Minimum sensor-number table                 |
 | `06_clarity_vs_sensors.jl`         | Clarity versus sensor count                 |
-| `07_noise_rate_tradeoff.jl`        | Measurement-noise and sensing-rate tradeoff |
+| `07_noise_rate_tradeoff.jl`        | Noise-model and sampling-interval sweep     |
 
 
 Shared parameters are in `config/common.toml`; each script's `paper` parameters
