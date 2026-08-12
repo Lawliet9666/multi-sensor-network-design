@@ -38,6 +38,19 @@ end
     @test isposdef(Matrix(get_Σ(predicted)))
 end
 
+@testset "I.i.d. grid-point sampling" begin
+    point = @SVector[0.0, 0.0]
+    point_sets = sample_point_sets(
+        MersenneTwister(1), [point], 2; configuration_count=3,
+    )
+
+    @test length(point_sets) == 3
+    @test all(points -> points == [point, point], point_sets)
+    @test_throws ArgumentError sample_point_sets(
+        MersenneTwister(1), [point], 0; configuration_count=1,
+    )
+end
+
 @testset "Analytic network-design bound" begin
     config_root = joinpath(@__DIR__, "..", "config")
     config = load_experiment_config(

@@ -3,24 +3,18 @@
 The experiment scripts write all generated data and figures under this
 directory and print the absolute path immediately after each file is saved.
 
-Running all seven experiments creates one timestamped directory:
+All runs use one fixed directory per experiment:
 
 ```text
-results/<profile>-<timestamp>/
+results/<experiment>/
 ├── data/          # CSV and JLD2 numerical outputs
 ├── figures/       # SVG and PDF figures
 ├── configs/       # Resolved configuration for each experiment
-└── metadata.toml  # Profile, seed, Julia version, commands, and Git revision
+└── metadata.toml  # Added by the all-results runner
 ```
 
-Running one experiment directly keeps its outputs separate:
-
-```text
-results/<experiment>/<profile>-<timestamp>/
-├── data/
-├── figures/
-└── configs/       # Resolved configuration for this experiment
-```
+Running the same experiment again updates its generated files at the same
+paths. Existing historical timestamped directories are not used by new runs.
 
 | Experiment | Saved result |
 |---|---|

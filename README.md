@@ -18,9 +18,9 @@ Generate all paper results:
 julia --project=. scripts/reproduce_paper.jl
 ```
 
-This runs all seven experiments. Data, figures, resolved configurations, and
-run metadata are saved under `results/paper-<timestamp>/`. Every saved file is printed with
-its absolute path.
+This runs all seven experiments. Each experiment saves its data, figures,
+resolved configuration, and run metadata under `results/<experiment>/`. Every
+saved file is printed with its absolute path.
 
 Run one result only:
 
@@ -28,8 +28,8 @@ Run one result only:
 julia --project=. experiments/03_discrete_continuous_bounds.jl
 ```
 
-Single-experiment outputs are saved under
-`results/<experiment>/paper-<timestamp>/`.
+Single-experiment outputs are saved under `results/<experiment>/`. Running the
+same experiment again updates its result files at the same paths.
 
 
 | Script                             | Result                                      |

@@ -5,7 +5,6 @@ Pkg.activate(REPOSITORY_ROOT)
 
 ENV["GKSwstype"] = get(ENV, "GKSwstype", "100")
 
-using Dates
 using JLD2
 using Kronecker
 using LinearAlgebra
@@ -60,9 +59,8 @@ function experiment_context(arguments=ARGS)
     ))
     requested_output = option_value(arguments, "--output", nothing)
     experiment = splitext(basename(PROGRAM_FILE))[1]
-    stamp = Dates.format(now(UTC), "yyyymmdd-HHMMSS")
     output_root = isnothing(requested_output) ?
-        joinpath(REPOSITORY_ROOT, "results", experiment, "$profile-$stamp") :
+        joinpath(REPOSITORY_ROOT, "results", experiment) :
         requested_output
     output = abspath(output_root)
     data_dir = joinpath(output, "data")

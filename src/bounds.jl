@@ -22,12 +22,11 @@ end
 
 function sample_point_sets(rng, points, sensor_count::Int; configuration_count::Int)
     grid_count = length(points)
-    1 <= sensor_count <= grid_count || throw(ArgumentError(
-        "Sensor count must be between 1 and $grid_count.",
-    ))
+    grid_count > 0 || throw(ArgumentError("At least one grid point is required."))
+    sensor_count > 0 || throw(ArgumentError("Sensor count must be positive."))
     configuration_count > 0 || throw(ArgumentError("Configuration count must be positive."))
     return [
-        [points[index] for index in sample(rng, 1:grid_count, sensor_count; replace=false)]
+        [points[index] for index in sample(rng, 1:grid_count, sensor_count; replace=true)]
         for _ in 1:configuration_count
     ]
 end
