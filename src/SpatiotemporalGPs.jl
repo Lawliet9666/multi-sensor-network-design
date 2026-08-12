@@ -26,7 +26,8 @@ export KFState, get_μ, get_Σ, predict, correct
 export stgpkf_initialize, stgpkf_predict, stgpkf_correct
 export get_estimate, get_estimate_clarity, get_clarity, get_covariance
 export generate_spatiotemporal_process, measure, rand_point
-export discrete_covariance_bound, continuous_covariance_bound, analytic_covariance_bound
+export discrete_covariance_bound, discrete_covariance_bound_steady_state
+export continuous_covariance_bound, analytic_covariance_bound
 export G_from_samples, G_analytic
 export precompute_sensor_configs, sample_point_sets
 export simulate_expected_covariance, expected_covariance, linear_operator

@@ -15,7 +15,7 @@ julia --project=. -e 'using Pkg; Pkg.instantiate()'
 Generate all paper results:
 
 ```bash
-julia --project=. scripts/reproduce_paper.jl --profile paper
+julia --project=. scripts/reproduce_paper.jl
 ```
 
 This runs all seven experiments. Data, figures, resolved configurations, and
@@ -25,7 +25,7 @@ its absolute path.
 Run one result only:
 
 ```bash
-julia --project=. experiments/03_discrete_continuous_bounds.jl --profile paper
+julia --project=. experiments/03_discrete_continuous_bounds.jl
 ```
 
 Single-experiment outputs are saved under

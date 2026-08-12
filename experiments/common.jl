@@ -54,7 +54,7 @@ function option_value(arguments, name, default)
 end
 
 function experiment_context(arguments=ARGS)
-    profile = option_value(arguments, "--profile", "smoke")
+    profile = option_value(arguments, "--profile", "paper")
     config_root = abspath(option_value(
         arguments, "--config", joinpath(REPOSITORY_ROOT, "config"),
     ))

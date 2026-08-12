@@ -7,16 +7,3 @@ heatmap_sigma_min = 0.1
 heatmap_sigma_max = 2.0
 heatmap_dt_min = 0.1
 heatmap_dt_max = 2.0
-
-[smoke]
-sensor_count = 1
-heatmap_nx = 4
-heatmap_ny = 4
-# sigma_c range when fix_sigma_c=true; sigma_m range otherwise.
-heatmap_sigma_min = 0.5
-heatmap_sigma_max = 2.0
-heatmap_dt_min = 0.25
-heatmap_dt_max = 1.0
-
-[smoke.domain]
-dx = 2.5

@@ -32,8 +32,9 @@ function sample_point_sets(rng, points, sensor_count::Int; configuration_count::
     ]
 end
 
-function discrete_bound_step(problem, covariance, sensor_models, rng;
-                             sample_count::Int, beta::Real)
+function discrete_bound_step(
+    problem, covariance, sensor_models, selected_indices::AbstractVector{<:Integer};
+                             beta::Real)
     grid_count = length(problem.pts)
     transition = I(grid_count) ⊗ problem.ss_model.Φ
     process_noise = I(grid_count) ⊗ problem.ss_model.W
@@ -41,18 +42,25 @@ function discrete_bound_step(problem, covariance, sensor_models, rng;
     cross_left = transition * covariance
     cross_right = covariance * transition'
 
-    count = min(sample_count, length(sensor_models))
-    selected = sample(rng, 1:length(sensor_models), count; replace=false)
     correction = zeros(eltype(covariance), size(covariance))
-    for index in selected
+    for index in selected_indices
         H, V = sensor_models[index]
         correction .+= cross_left * H' * ((V + H * covariance * H') \ (H * cross_right))
     end
-    correction ./= count
+    correction ./= length(selected_indices)
     next_covariance = process_noise + predicted - beta .* correction
     next_covariance = 0.5 .* (next_covariance + next_covariance')
     next_covariance += 1e-12I
     return Matrix(next_covariance)
+end
+
+function discrete_bound_step(problem, covariance, sensor_models, rng::AbstractRNG;
+                             sample_count::Int, beta::Real)
+    count = min(sample_count, length(sensor_models))
+    selected_indices = sample(rng, 1:length(sensor_models), count; replace=false)
+    return discrete_bound_step(
+        problem, covariance, sensor_models, selected_indices; beta=beta,
+    )
 end
 
 function discrete_covariance_bound(problem::STGPKFProblem, times, sensor_models;
@@ -68,6 +76,49 @@ function discrete_covariance_bound(problem::STGPKFProblem, times, sensor_models;
         push!(history, copy(covariance))
     end
     return history
+end
+
+function discrete_covariance_bound_steady_state(
+    problem::STGPKFProblem,
+    sensor_models;
+    tolerance::Real=1e-6,
+    maximum_iterations::Int=20_000,
+    sample_count::Int=500,
+    seed::Int=1,
+    beta::Real=1.0,
+)
+    tolerance > 0 || throw(ArgumentError("Steady-state tolerance must be positive."))
+    maximum_iterations > 0 || throw(ArgumentError(
+        "Maximum steady-state iterations must be positive.",
+    ))
+    sample_count > 0 || throw(ArgumentError("Sample count must be positive."))
+    isempty(sensor_models) && throw(ArgumentError("At least one sensor model is required."))
+
+    count = min(sample_count, length(sensor_models))
+    selected_indices = sample(
+        MersenneTwister(seed), 1:length(sensor_models), count; replace=false,
+    )
+    covariance = Matrix(get_Σ(stgpkf_initialize(problem)))
+
+    for iteration in 1:maximum_iterations
+        next_covariance = discrete_bound_step(
+            problem, covariance, sensor_models, selected_indices; beta=beta,
+        )
+        residual = norm(next_covariance - covariance) / max(1.0, norm(covariance))
+        if residual < tolerance
+            return (
+                covariance=next_covariance,
+                iterations=iteration,
+                residual=residual,
+            )
+        end
+        covariance = next_covariance
+    end
+
+    error(
+        "Discrete covariance bound did not converge within " *
+        "$maximum_iterations iterations at tolerance $tolerance.",
+    )
 end
 
 function continuous_covariance_bound(A::AbstractMatrix, G::AbstractMatrix, Q::AbstractMatrix)

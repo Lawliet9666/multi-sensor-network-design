@@ -41,7 +41,7 @@ end
 @testset "Analytic network-design bound" begin
     config_root = joinpath(@__DIR__, "..", "config")
     config = load_experiment_config(
-        config_root, "04_grid_convergence", "smoke",
+        config_root, "04_grid_convergence", "paper",
     )
     measurement_std = measurement_std_at_step(
         config["measurement"]["std"],
@@ -64,13 +64,11 @@ end
 
 @testset "Experiment configuration composition" begin
     config_root = joinpath(@__DIR__, "..", "config")
-    smoke = load_experiment_config(config_root, "02_clarity_vs_time", "smoke")
     paper = load_experiment_config(config_root, "02_clarity_vs_time", "paper")
 
-    @test smoke["temporal_kernel"]["length_scale"] == 60.0
-    @test smoke["domain"]["max"] == 5.0
-    @test smoke["domain"]["dx"] == 2.5
-    @test smoke["simulation"]["dt"] == 0.5
+    @test paper["temporal_kernel"]["length_scale"] == 60.0
+    @test paper["domain"]["max"] == 5.0
+    @test paper["domain"]["dx"] == 0.5
     @test paper["simulation"]["dt"] == 0.05
     @test paper["estimate_sensors"] == [1, 6, 20]
     bound_config = load_experiment_config(
@@ -78,6 +76,8 @@ end
     )
     @test bound_config["measurement"]["fix_sigma_c"] === true
     @test bound_config["measurement"]["sigma_c_squared"] == 0.2
+    @test bound_config["steady_state_tolerance"] == 1e-6
+    @test bound_config["steady_state_maximum_iterations"] == 20_000
     @test bound_config["measurement"]["std"]^2 *
           bound_config["simulation"]["dt"] ≈
           bound_config["measurement"]["sigma_c_squared"]
@@ -100,6 +100,29 @@ end
     @test_throws ArgumentError load_experiment_config(
         config_root, "missing_experiment", "paper",
     )
+end
+
+@testset "Discrete covariance-bound steady state" begin
+    points = vec([@SVector[x, y] for x in 0.0:1.0:2.0, y in 0.0:1.0:2.0])
+    problem = STGPKFProblem(
+        points,
+        Matern(1 / 2, 1.0, 2.0),
+        Matern(1 / 2, 2.0, 60.0),
+        0.5,
+    )
+    sensor_models = precompute_sensor_configs(problem, 1, reshape([0.4], 1, 1))
+    result = discrete_covariance_bound_steady_state(
+        problem,
+        sensor_models;
+        tolerance=1e-6,
+        maximum_iterations=20_000,
+        sample_count=length(sensor_models),
+        seed=1,
+        beta=1.0,
+    )
+    @test result.residual < 1e-6
+    @test result.iterations <= 20_000
+    @test isposdef(Matrix(result.covariance))
 end
 
 @testset "Measurement-noise scaling" begin

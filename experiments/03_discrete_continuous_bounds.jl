@@ -13,11 +13,11 @@ function compute_bound_at_step(config, step)
     sensor_models = precompute_sensor_configs(
         problem, sensor_count, measurement_covariance,
     )
-    times = step .* (0:(Int(ceil(config["simulation"]["horizon"] / step)) - 1))
-    discrete_history = discrete_covariance_bound(
+    discrete_result = discrete_covariance_bound_steady_state(
         problem,
-        times,
         sensor_models;
+        tolerance=config["steady_state_tolerance"],
+        maximum_iterations=config["steady_state_maximum_iterations"],
         sample_count=config["bound_sample_count"],
         seed=config["seed"],
         beta=config["beta"],
@@ -36,7 +36,9 @@ function compute_bound_at_step(config, step)
         dt=step,
         measurement_std=measurement_std,
         continuous=linear_operator(continuous_bound),
-        discrete=linear_operator(last(discrete_history)),
+        discrete=linear_operator(discrete_result.covariance),
+        discrete_iterations=discrete_result.iterations,
+        discrete_residual=discrete_result.residual,
     )
 end
 

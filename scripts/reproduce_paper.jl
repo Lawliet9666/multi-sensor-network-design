@@ -78,7 +78,7 @@ function write_metadata(output, profile, config_root, commands)
 end
 
 function main(arguments=ARGS)
-    profile = option_value(arguments, "--profile", "smoke")
+    profile = option_value(arguments, "--profile", "paper")
     config_root = abspath(option_value(
         arguments, "--config", joinpath(REPOSITORY_ROOT, "config"),
     ))
