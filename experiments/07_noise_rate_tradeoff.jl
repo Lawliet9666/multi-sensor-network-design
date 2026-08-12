@@ -21,7 +21,7 @@ function compute_tradeoff_grid(config)
             sqrt(variance), variance, step, fix_sigma_c,
         )
         metrics = clarity_metrics(problem, sensor_count, measurement_std, step)
-        clarity[row, column] = metrics.mean_state_clarity
+        clarity[row, column] = metrics.mean_field_clarity
     end
 
     noise_axis = fix_sigma_c ? "sigma_c_squared" : "sigma_m_squared"

@@ -19,7 +19,7 @@ function compute_grid_case(config, dx, sensor_count)
         measurement_std=measurement_std,
         mean_state_variance=metrics.mean_state_variance,
         max_state_variance=metrics.max_state_variance,
-        clarity=metrics.mean_state_clarity,
+        clarity=metrics.mean_field_clarity,
     )
 end
 
