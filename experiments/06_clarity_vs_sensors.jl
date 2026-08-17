@@ -23,7 +23,7 @@ function compute_sensor_case(
         configuration_count=config["configuration_count"],
     )
     covariance = measurement_std^2 * I(sensor_count)
-    expected = simulate_expected_covariance(
+    clarity_statistics = simulate_expected_clarity(
         problem,
         data,
         point_sets,
@@ -37,7 +37,15 @@ function compute_sensor_case(
         mean_field_variance=metrics.mean_field_variance,
         max_field_variance=metrics.max_field_variance,
         bound_clarity=metrics.mean_field_clarity,
-        empirical_clarity=mean(get_clarity(problem, last(expected))),
+        expected_spatial_mean_clarity_estimate=
+            clarity_statistics.expected_spatial_mean_clarity_estimate,
+        spatial_mean_clarity_of_expected_covariance_estimate=
+            clarity_statistics.spatial_mean_clarity_of_expected_covariance_estimate,
+        spatial_mean_clarity_sample_std=
+            clarity_statistics.spatial_mean_clarity_sample_std,
+        spatial_mean_clarity_standard_error=
+            clarity_statistics.spatial_mean_clarity_standard_error,
+        monte_carlo_trials=clarity_statistics.monte_carlo_trials,
     )
 end
 
@@ -62,7 +70,11 @@ function save_sensor_curve(context, rows)
 end
 
 function create_sensor_curve_figures(context, rows)
-    return plot_sensor_table_curve(rows, context.figure_dir)
+    return plot_sensor_table_curve(
+        rows,
+        context.figure_dir;
+        target_clarity=context.config["plot_target_clarity"],
+    )
 end
 
 function main(arguments=ARGS)
@@ -77,10 +89,10 @@ function main(arguments=ARGS)
     data_path = save_sensor_curve(context, rows)
 
     # Step 4: Create figures.
-    figures = create_sensor_curve_figures(context, rows)
+    figure_path = create_sensor_curve_figures(context, rows)
 
     # Step 5: Report saved outputs.
-    return complete_experiment(context, [data_path, figures.svg, figures.pdf])
+    return complete_experiment(context, [data_path, figure_path])
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

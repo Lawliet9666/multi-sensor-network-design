@@ -1,9 +1,8 @@
 include("common.jl")
 
-function compute_bound_at_step(config, step)
+function compute_finite_horizon_at_step(config, step)
     sensor_count = config["sensor_count"]
     measurement_std = experiment_measurement_std(config, step)
-
     problem, _, _, _, _ = build_problem(config; dt=step)
     continuous_problem, _, _, _, _ = build_problem(
         config; dt=step, continuous=true,
@@ -13,40 +12,52 @@ function compute_bound_at_step(config, step)
     sensor_models = precompute_sensor_configs(
         problem, sensor_count, measurement_covariance,
     )
-    discrete_result = discrete_covariance_bound_steady_state(
+    comparison = finite_horizon_covariance_comparison(
         problem,
+        continuous_problem,
         sensor_models;
-        tolerance=config["steady_state_tolerance"],
-        maximum_iterations=config["steady_state_maximum_iterations"],
-        sample_count=config["bound_sample_count"],
+        horizon=config["simulation"]["horizon"],
+        trials=config["monte_carlo_trials"],
         seed=config["seed"],
-        beta=config["beta"],
     )
 
     grid_count = length(problem.pts)
-    A = I(grid_count) ⊗ continuous_problem.ss_model.A
-    B = I(grid_count) ⊗ continuous_problem.ss_model.B
-    G = config["beta"] .* G_from_samples(sensor_models, grid_count, step)
-    continuous_bound = continuous_covariance_bound(A, G, B * B')
-
-    return (
+    summary = (
         Ng=grid_count,
         dx=config["domain"]["dx"],
         N_robots=sensor_count,
         dt=step,
+        horizon=config["simulation"]["horizon"],
         measurement_std=measurement_std,
-        continuous=linear_operator(continuous_bound),
-        discrete=linear_operator(discrete_result.covariance),
-        discrete_iterations=discrete_result.iterations,
-        discrete_residual=discrete_result.residual,
+        monte_carlo_trials=config["monte_carlo_trials"],
+        empirical_max_frobenius_error=comparison.empirical_max_frobenius_error,
+        discrete_max_frobenius_error=comparison.discrete_max_frobenius_error,
+        empirical_max_linear_operator_error=
+            comparison.empirical_max_linear_operator_error,
+        discrete_max_linear_operator_error=
+            comparison.discrete_max_linear_operator_error,
+        empirical_max_relative_linear_operator_error_percent=
+            comparison.empirical_max_relative_linear_operator_error_percent,
+        discrete_max_relative_linear_operator_error_percent=
+            comparison.discrete_max_relative_linear_operator_error_percent,
     )
+    return summary, comparison
 end
 
-function compute_bound_rows(config)
-    return [
-        compute_bound_at_step(config, step)
-        for step in config["bound_steps"]
-    ]
+function compute_finite_horizon_results(config)
+    trajectory_step = config["trajectory_step"]
+    any(step -> isapprox(step, trajectory_step), config["bound_steps"]) || error(
+        "trajectory_step must be one of bound_steps.",
+    )
+    summaries = NamedTuple[]
+    trajectory = nothing
+    for step in config["bound_steps"]
+        summary, comparison = compute_finite_horizon_at_step(config, step)
+        push!(summaries, summary)
+        isapprox(step, trajectory_step) && (trajectory = comparison)
+    end
+    isnothing(trajectory) && error("No trajectory was computed at trajectory_step.")
+    return summaries, trajectory
 end
 
 function save_bound_table(context, rows)
@@ -56,11 +67,26 @@ function save_bound_table(context, rows)
     )
 end
 
-function create_bound_figures(context, rows)
+function save_trajectory_table(context, trajectory)
+    rows = [
+        (
+            time=trajectory.times[index],
+            empirical_mean_covariance=trajectory.empirical_mean_covariance[index],
+            discrete_bound_mean_covariance=trajectory.discrete_bound_mean_covariance[index],
+            continuous_bound_mean_covariance=trajectory.continuous_bound_mean_covariance[index],
+        )
+        for index in eachindex(trajectory.times)
+    ]
+    return write_csv(
+        joinpath(context.data_dir, "discrete_continuous_trajectory.csv"),
+        rows,
+    )
+end
+
+function create_bound_figures(context, summaries, trajectory)
     return plot_bound_comparison(
-        getproperty.(rows, :dt),
-        getproperty.(rows, :continuous),
-        getproperty.(rows, :discrete),
+        trajectory,
+        summaries,
         context.figure_dir,
     )
 end
@@ -70,17 +96,20 @@ function main(arguments=ARGS)
     context = experiment_context(arguments)
     begin_experiment(context)
 
-    # Step 2: Compute discrete and continuous bounds.
-    rows = compute_bound_rows(context.config)
+    # Step 2: Compute the finite-horizon covariance comparisons.
+    summaries, trajectory = compute_finite_horizon_results(context.config)
 
-    # Step 3: Save the comparison table.
-    data_path = save_bound_table(context, rows)
+    # Step 3: Save the convergence errors and representative trajectory.
+    data_path = save_bound_table(context, summaries)
+    trajectory_path = save_trajectory_table(context, trajectory)
 
     # Step 4: Create figures.
-    figures = create_bound_figures(context, rows)
+    figure_path = create_bound_figures(context, summaries, trajectory)
 
     # Step 5: Report saved outputs.
-    return complete_experiment(context, [data_path, figures.svg, figures.pdf])
+    return complete_experiment(
+        context, [data_path, trajectory_path, figure_path],
+    )
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

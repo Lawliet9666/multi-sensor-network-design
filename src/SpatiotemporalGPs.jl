@@ -3,6 +3,7 @@ module SpatiotemporalGPs
 using Combinatorics
 using Interpolations
 using Kronecker
+using LaTeXStrings
 using LinearAlgebra
 using MatrixEquations
 using Plots
@@ -27,10 +28,12 @@ export stgpkf_initialize, stgpkf_predict, stgpkf_correct
 export get_estimate, get_estimate_clarity, get_clarity, get_covariance
 export generate_spatiotemporal_process, measure, rand_point
 export discrete_covariance_bound, discrete_covariance_bound_steady_state
+export finite_horizon_covariance_comparison
 export continuous_covariance_bound, analytic_covariance_bound
 export G_from_samples, G_analytic
 export precompute_sensor_configs, sample_point_sets
-export simulate_expected_covariance, expected_covariance, linear_operator
+export simulate_expected_covariance, simulate_expected_clarity
+export spatial_mean_clarity, expected_covariance, linear_operator
 export clarity_metrics, minimum_sensor_count
 export load_experiment_config, measurement_std_at_step, build_problem
 export plot_field_reconstruction, plot_mean_clarity, plot_bound_comparison

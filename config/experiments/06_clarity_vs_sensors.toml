@@ -1,4 +1,5 @@
 [paper]
 trials = 30
 configuration_count = 10000
-sensor_curve = [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
+sensor_curve = [1, 5, 10, 15, 20, 21, 25, 30, 35, 40, 45, 50]
+plot_target_clarity = 0.8

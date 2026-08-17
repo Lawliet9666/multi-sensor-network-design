@@ -57,10 +57,10 @@ function main(arguments=ARGS)
     data_paths = save_clarity_curves(context, result)
 
     # Step 4: Create figures.
-    figures = create_clarity_figures(context, result)
+    figure_path = create_clarity_figures(context, result)
 
     # Step 5: Report saved outputs.
-    return complete_experiment(context, [data_paths; figures.svg; figures.pdf])
+    return complete_experiment(context, [data_paths; figure_path])
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

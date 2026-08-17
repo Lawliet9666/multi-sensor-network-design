@@ -1,4 +1,4 @@
 [paper]
 reconstruction_dx = 0.25
 reconstruction_sensors = 20
-snapshot_offset = 100
+snapshot_offset = 250

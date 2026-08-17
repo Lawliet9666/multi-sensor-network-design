@@ -1,6 +1,6 @@
 include("common.jl")
 
-function simulate_empirical_clarity(config, sensor_count, seed_offset)
+function simulate_expected_spatial_clarity(config, sensor_count, seed_offset)
     problem, _, _, data = make_field(config; seed=config["seed"])
     measurement_std = experiment_measurement_std(config)
     simulation_seed = config["seed"] + seed_offset
@@ -11,7 +11,7 @@ function simulate_empirical_clarity(config, sensor_count, seed_offset)
         configuration_count=config["configuration_count"],
     )
     covariance = measurement_std^2 * I(sensor_count)
-    expected = simulate_expected_covariance(
+    return simulate_expected_clarity(
         problem,
         data,
         point_sets,
@@ -20,7 +20,6 @@ function simulate_empirical_clarity(config, sensor_count, seed_offset)
         trials=config["trials"],
         seed=simulation_seed,
     )
-    return mean(get_clarity(problem, last(expected)))
 end
 
 function compute_sensor_table_row(config, continuous_problem, target, index)
@@ -31,7 +30,7 @@ function compute_sensor_table_row(config, continuous_problem, target, index)
         measurement_std,
         config["simulation"]["dt"],
     )
-    empirical = simulate_empirical_clarity(
+    clarity_statistics = simulate_expected_spatial_clarity(
         config, metrics.sensor_count, 10_000 * index,
     )
     return (
@@ -41,7 +40,15 @@ function compute_sensor_table_row(config, continuous_problem, target, index)
         mean_field_variance=metrics.mean_field_variance,
         max_field_variance=metrics.max_field_variance,
         bound_clarity=metrics.mean_field_clarity,
-        empirical_clarity=empirical,
+        expected_spatial_mean_clarity_estimate=
+            clarity_statistics.expected_spatial_mean_clarity_estimate,
+        spatial_mean_clarity_of_expected_covariance_estimate=
+            clarity_statistics.spatial_mean_clarity_of_expected_covariance_estimate,
+        spatial_mean_clarity_sample_std=
+            clarity_statistics.spatial_mean_clarity_sample_std,
+        spatial_mean_clarity_standard_error=
+            clarity_statistics.spatial_mean_clarity_standard_error,
+        monte_carlo_trials=clarity_statistics.monte_carlo_trials,
     )
 end
 

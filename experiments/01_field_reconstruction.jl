@@ -47,10 +47,10 @@ function main(arguments=ARGS)
     data_path = save_reconstruction_data(context, result)
 
     # Step 4: Create figures.
-    figures = create_reconstruction_figures(context, result)
+    figure_path = create_reconstruction_figures(context, result)
 
     # Step 5: Report saved outputs.
-    return complete_experiment(context, [data_path, figures.svg, figures.pdf])
+    return complete_experiment(context, [data_path, figure_path])
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

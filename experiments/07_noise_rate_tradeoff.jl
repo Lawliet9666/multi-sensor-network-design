@@ -1,31 +1,45 @@
 include("common.jl")
 
 function compute_tradeoff_grid(config)
+    config["measurement"]["fix_sigma_c"] === false || error(
+        "Experiment 07 must sweep sigma_m^2 and Delta t / N_r rather than fix sigma_c^2.",
+    )
     problem, _, _, _, _ = build_problem(config; continuous=true)
-    noise_variances = collect(range(
-        config["heatmap_sigma_min"]^2,
-        config["heatmap_sigma_max"]^2;
-        length=config["heatmap_nx"],
+    measurement_variances = collect(range(
+        config["measurement_variance_min"],
+        config["measurement_variance_max"];
+        length=config["measurement_variance_points"],
     ))
-    steps = collect(range(
-        config["heatmap_dt_min"],
-        config["heatmap_dt_max"];
-        length=config["heatmap_ny"],
+    normalized_intervals = collect(range(
+        config["normalized_interval_min"],
+        config["normalized_interval_max"];
+        length=config["normalized_interval_points"],
     ))
     sensor_count = config["sensor_count"]
-    fix_sigma_c = config["measurement"]["fix_sigma_c"]
-    clarity = Matrix{Float64}(undef, length(steps), length(noise_variances))
+    clarity_lower_bound = Matrix{Float64}(
+        undef,
+        length(normalized_intervals),
+        length(measurement_variances),
+    )
 
-    for (row, step) in enumerate(steps), (column, variance) in enumerate(noise_variances)
-        measurement_std = measurement_std_at_step(
-            sqrt(variance), variance, step, fix_sigma_c,
+    for (row, normalized_interval) in enumerate(normalized_intervals),
+        (column, measurement_variance) in enumerate(measurement_variances)
+        step = normalized_interval * sensor_count
+        metrics = clarity_metrics(
+            problem,
+            sensor_count,
+            sqrt(measurement_variance),
+            step,
         )
-        metrics = clarity_metrics(problem, sensor_count, measurement_std, step)
-        clarity[row, column] = metrics.mean_field_clarity
+        clarity_lower_bound[row, column] = metrics.mean_field_clarity
     end
 
-    noise_axis = fix_sigma_c ? "sigma_c_squared" : "sigma_m_squared"
-    return (; noise_variances, steps, clarity, sensor_count, fix_sigma_c, noise_axis)
+    return (;
+        measurement_variances,
+        normalized_intervals,
+        clarity_lower_bound,
+        sensor_count,
+    )
 end
 
 function save_tradeoff_data(context, result)
@@ -34,24 +48,21 @@ function save_tradeoff_data(context, result)
             context.data_dir,
             "clarity_grid_Nr$(result.sensor_count).jld2",
         );
-        noise_variances=result.noise_variances,
-        steps=result.steps,
-        clarity=result.clarity,
+        measurement_variances=result.measurement_variances,
+        normalized_intervals=result.normalized_intervals,
+        clarity_lower_bound=result.clarity_lower_bound,
         sensor_count=result.sensor_count,
-        fix_sigma_c=result.fix_sigma_c,
-        noise_axis=result.noise_axis,
         seed=context.config["seed"],
     )
 end
 
 function create_tradeoff_figures(context, result)
     return plot_noise_rate_tradeoff(
-        result.noise_variances,
-        result.steps,
-        result.clarity,
-        result.sensor_count,
+        result.measurement_variances,
+        result.normalized_intervals,
+        result.clarity_lower_bound,
         context.figure_dir;
-        fix_sigma_c=result.fix_sigma_c,
+        contour_targets=context.config["contour_clarity_levels"],
     )
 end
 
@@ -67,10 +78,10 @@ function main(arguments=ARGS)
     data_path = save_tradeoff_data(context, result)
 
     # Step 4: Create figures.
-    figures = create_tradeoff_figures(context, result)
+    figure_path = create_tradeoff_figures(context, result)
 
     # Step 5: Report saved outputs.
-    return complete_experiment(context, [data_path, figures.svg, figures.pdf])
+    return complete_experiment(context, [data_path, figure_path])
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

@@ -24,8 +24,8 @@ const EXPERIMENT_DETAILS = Dict(
         purpose="Compare mean clarity trajectories for the configured sensor counts.",
     ),
     "03_discrete_continuous_bounds" => (
-        title="Discrete and continuous covariance bounds",
-        purpose="Compare the steady discrete-time and continuous-time covariance bounds.",
+        title="Finite-horizon covariance comparison",
+        purpose="Compare empirical covariance and discrete and continuous bounds over a fixed horizon.",
     ),
     "04_grid_convergence" => (
         title="Grid convergence",
@@ -33,11 +33,11 @@ const EXPERIMENT_DETAILS = Dict(
     ),
     "05_sensor_number_table" => (
         title="Minimum sensor-number table",
-        purpose="Find the minimum sensor count for each target clarity and compare with simulation.",
+        purpose="Find the minimum sensor count and estimate expected spatial-mean clarity.",
     ),
     "06_clarity_vs_sensors" => (
         title="Clarity versus sensor count",
-        purpose="Compare analytic and empirical clarity across sensor counts.",
+        purpose="Compare the analytic bound and expected spatial-mean clarity across sensor counts.",
     ),
     "07_noise_rate_tradeoff" => (
         title="Noise-model and sampling-interval sweep",
@@ -105,9 +105,7 @@ end
 function measurement_noise_description(context)
     measurement = context.config["measurement"]
     if context.experiment == "07_noise_rate_tradeoff"
-        return measurement["fix_sigma_c"] ?
-            "fixed sigma_c^2 within each sweep case (revised paper)" :
-            "fixed sigma_m within each sweep case (root_v2 paper)"
+        return "sweep sigma_m^2 and Delta t / N_r (paper Fig. 5(b))"
     end
     return measurement["fix_sigma_c"] ?
         "fixed sigma_c^2 = $(measurement["sigma_c_squared"]) (revised paper)" :

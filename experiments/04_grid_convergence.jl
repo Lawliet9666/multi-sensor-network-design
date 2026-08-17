@@ -51,10 +51,10 @@ function main(arguments=ARGS)
     data_path = save_grid_table(context, rows)
 
     # Step 4: Create figures.
-    figures = create_grid_figures(context, rows)
+    figure_path = create_grid_figures(context, rows)
 
     # Step 5: Report saved outputs.
-    return complete_experiment(context, [data_path, figures.svg, figures.pdf])
+    return complete_experiment(context, [data_path, figure_path])
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

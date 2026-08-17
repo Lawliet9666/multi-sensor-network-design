@@ -120,6 +120,359 @@ function discrete_covariance_bound_steady_state(
     )
 end
 
+function _finite_horizon_step_count(horizon::Real, step::Real)
+    horizon > 0 || throw(ArgumentError("Finite horizon must be positive."))
+    step > 0 || throw(ArgumentError("Sampling interval must be positive."))
+    step_count = round(Int, horizon / step)
+    isapprox(step_count * step, horizon; rtol=1e-10, atol=1e-12) || throw(
+        ArgumentError("Finite horizon $horizon must be an integer multiple of step $step."),
+    )
+    return step_count
+end
+
+function _single_sensor_parameters(sensor_models, state_dimension::Int)
+    isempty(sensor_models) && throw(ArgumentError("At least one sensor model is required."))
+    observation_vectors = Vector{Vector{Float64}}(undef, length(sensor_models))
+    measurement_variances = Vector{Float64}(undef, length(sensor_models))
+    for (index, (observation, measurement_covariance)) in enumerate(sensor_models)
+        size(observation) == (1, state_dimension) || throw(ArgumentError(
+            "Finite-horizon comparison currently requires one sensor per configuration.",
+        ))
+        size(measurement_covariance) == (1, 1) || throw(ArgumentError(
+            "Finite-horizon comparison requires scalar measurement covariance.",
+        ))
+        variance = only(measurement_covariance)
+        isfinite(variance) && variance > 0 || throw(ArgumentError(
+            "Measurement covariance must be finite and positive.",
+        ))
+        observation_vectors[index] = vec(copy(observation))
+        measurement_variances[index] = variance
+    end
+    return observation_vectors, measurement_variances
+end
+
+function _check_innovation_variance(value::Real)
+    isfinite(value) && value > 0 || error(
+        "Encountered a non-positive or non-finite innovation variance: $value",
+    )
+    return value
+end
+
+function _single_sensor_covariance_step!(
+    covariance::Matrix{Float64}, observation::Vector{Float64},
+    measurement_variance::Float64, transition_squared::Float64,
+    process_variance::Float64, projected_covariance::Vector{Float64},
+)
+    mul!(projected_covariance, covariance, observation)
+    innovation_variance = _check_innovation_variance(
+        measurement_variance + dot(observation, projected_covariance),
+    )
+    covariance .*= transition_squared
+    BLAS.ger!(
+        -transition_squared / innovation_variance,
+        projected_covariance,
+        projected_covariance,
+        covariance,
+    )
+    @inbounds for index in axes(covariance, 1)
+        covariance[index, index] += process_variance
+    end
+    LinearAlgebra.copytri!(covariance, 'U')
+    return covariance
+end
+
+function _single_sensor_bound_step!(
+    covariance::Matrix{Float64}, observation_vectors,
+    measurement_variances, transition_squared::Float64,
+    process_variance::Float64, projected_covariance::Vector{Float64},
+    mean_correction::Matrix{Float64},
+)
+    fill!(mean_correction, 0.0)
+    for index in eachindex(observation_vectors)
+        observation = observation_vectors[index]
+        mul!(projected_covariance, covariance, observation)
+        innovation_variance = _check_innovation_variance(
+            measurement_variances[index] + dot(observation, projected_covariance),
+        )
+        BLAS.ger!(
+            inv(innovation_variance),
+            projected_covariance,
+            projected_covariance,
+            mean_correction,
+        )
+    end
+    covariance .*= transition_squared
+    covariance .-= (
+        transition_squared / length(observation_vectors)
+    ) .* mean_correction
+    @inbounds for index in axes(covariance, 1)
+        covariance[index, index] += process_variance
+    end
+    LinearAlgebra.copytri!(covariance, 'U')
+    return covariance
+end
+
+function _validate_isotropic_continuous_model(problem, initial_covariance)
+    size(problem.ss_model.A) == (1, 1) || throw(ArgumentError(
+        "Finite-horizon comparison currently supports the paper's scalar temporal model.",
+    ))
+    size(problem.ss_model.B) == (1, 1) || throw(ArgumentError(
+        "Finite-horizon comparison currently supports scalar process excitation.",
+    ))
+    state_dimension = size(initial_covariance, 1)
+    initial_scale = tr(initial_covariance) / state_dimension
+    isotropic_initial = Matrix(initial_covariance - initial_scale * I)
+    norm(isotropic_initial) <= 1e-10 * max(1.0, norm(initial_covariance)) || throw(
+        ArgumentError("Initial covariance must be isotropic for the finite-horizon solver."),
+    )
+    return (
+        drift=Float64(only(problem.ss_model.A)),
+        process_variance=Float64(abs2(only(problem.ss_model.B))),
+        initial_scale=Float64(initial_scale),
+    )
+end
+
+function _riccati_mode_derivative(value, information, drift, process_variance)
+    return 2 * drift * value + process_variance - information * value^2
+end
+
+function _rk4_riccati_modes_step!(
+    modes, information_eigenvalues, drift, process_variance, step,
+    k1, k2, k3, k4, intermediate,
+)
+    substep_count = max(1, ceil(Int, step / 0.01))
+    substep = step / substep_count
+    for _ in 1:substep_count
+        @inbounds for index in eachindex(modes)
+            k1[index] = _riccati_mode_derivative(
+                modes[index], information_eigenvalues[index], drift, process_variance,
+            )
+            intermediate[index] = modes[index] + substep * k1[index] / 2
+        end
+        @inbounds for index in eachindex(modes)
+            k2[index] = _riccati_mode_derivative(
+                intermediate[index], information_eigenvalues[index], drift, process_variance,
+            )
+            intermediate[index] = modes[index] + substep * k2[index] / 2
+        end
+        @inbounds for index in eachindex(modes)
+            k3[index] = _riccati_mode_derivative(
+                intermediate[index], information_eigenvalues[index], drift, process_variance,
+            )
+            intermediate[index] = modes[index] + substep * k3[index]
+        end
+        @inbounds for index in eachindex(modes)
+            k4[index] = _riccati_mode_derivative(
+                intermediate[index], information_eigenvalues[index], drift, process_variance,
+            )
+            modes[index] += substep * (
+                k1[index] + 2k2[index] + 2k3[index] + k4[index]
+            ) / 6
+            isfinite(modes[index]) && modes[index] > 0 || error(
+                "Continuous Riccati integration produced an invalid covariance mode.",
+            )
+        end
+    end
+    return modes
+end
+
+function _covariance_from_modes!(covariance, scaled_eigenvectors, eigenvectors, modes)
+    @inbounds for column in axes(eigenvectors, 2), row in axes(eigenvectors, 1)
+        scaled_eigenvectors[row, column] = eigenvectors[row, column] * modes[column]
+    end
+    mul!(covariance, scaled_eigenvectors, eigenvectors')
+    LinearAlgebra.copytri!(covariance, 'U')
+    return covariance
+end
+
+"""
+    finite_horizon_covariance_comparison(
+        problem, continuous_problem, sensor_models; horizon, trials, seed,
+    )
+
+Compare the Monte Carlo estimate of the expected discrete covariance, its exact
+uniform-configuration discrete upper bound, and the continuous Riccati solution
+on a shared finite time grid. The returned scalar histories include the common
+initial covariance at `t = 0`; both maximum Frobenius errors and maximum errors
+after applying `linear_operator` are evaluated over the complete horizon. The
+relative linear-operator errors are reported as percentages relative to the
+empirical covariance and discrete bound, respectively.
+
+This paper experiment uses one grid-point sensor and the scalar Matérn-1/2
+temporal model. Unsupported sensing or temporal models fail explicitly.
+"""
+function finite_horizon_covariance_comparison(
+    problem::STGPKFProblem,
+    continuous_problem::STGPKFProblemContinuous,
+    sensor_models;
+    horizon::Real,
+    trials::Int,
+    seed::Int,
+)
+    trials > 0 || throw(ArgumentError("Monte Carlo trial count must be positive."))
+    step = problem.ΔT
+    step_count = _finite_horizon_step_count(horizon, step)
+    initial_covariance = Matrix(get_Σ(stgpkf_initialize(problem)))
+    state_dimension = size(initial_covariance, 1)
+    observation_vectors, measurement_variances = _single_sensor_parameters(
+        sensor_models, state_dimension,
+    )
+    size(problem.ss_model.Φ) == (1, 1) || throw(ArgumentError(
+        "Finite-horizon comparison currently supports the paper's scalar temporal model.",
+    ))
+    size(problem.ss_model.W) == (1, 1) || throw(ArgumentError(
+        "Finite-horizon comparison currently supports scalar process covariance.",
+    ))
+    transition_squared = Float64(abs2(only(problem.ss_model.Φ)))
+    discrete_process_variance = Float64(only(problem.ss_model.W))
+
+    continuous_parameters = _validate_isotropic_continuous_model(
+        continuous_problem, initial_covariance,
+    )
+    information = Matrix(G_from_samples(sensor_models, state_dimension, step))
+    information_decomposition = eigen(Symmetric(information))
+    information_eigenvalues = information_decomposition.values
+    minimum(information_eigenvalues) >= -1e-10 || error(
+        "The averaged information matrix must be positive semidefinite.",
+    )
+    information_eigenvalues = max.(information_eigenvalues, 0.0)
+    eigenvectors = Matrix(information_decomposition.vectors)
+
+    trial_covariances = [copy(initial_covariance) for _ in 1:trials]
+    trial_rngs = [MersenneTwister(seed + 1000 * trial) for trial in 1:trials]
+    bound_covariance = copy(initial_covariance)
+    empirical_covariance = similar(initial_covariance)
+    continuous_covariance = copy(initial_covariance)
+    difference = similar(initial_covariance)
+    projected_covariances = [zeros(state_dimension) for _ in 1:trials]
+    bound_projection = zeros(state_dimension)
+    mean_correction = zeros(state_dimension, state_dimension)
+
+    modes = fill(continuous_parameters.initial_scale, state_dimension)
+    k1, k2, k3, k4, intermediate = (zeros(state_dimension) for _ in 1:5)
+    scaled_eigenvectors = similar(eigenvectors)
+
+    times = collect(range(0.0; step=step, length=step_count + 1))
+    empirical_mean_covariance = Vector{Float64}(undef, step_count + 1)
+    discrete_bound_mean_covariance = similar(empirical_mean_covariance)
+    continuous_bound_mean_covariance = similar(empirical_mean_covariance)
+    initial_mean = linear_operator(initial_covariance)
+    empirical_mean_covariance[1] = initial_mean
+    discrete_bound_mean_covariance[1] = initial_mean
+    continuous_bound_mean_covariance[1] = initial_mean
+    empirical_max_frobenius_error = 0.0
+    discrete_max_frobenius_error = 0.0
+    empirical_max_linear_operator_error = 0.0
+    discrete_max_linear_operator_error = 0.0
+    empirical_max_relative_linear_operator_error_percent = 0.0
+    discrete_max_relative_linear_operator_error_percent = 0.0
+
+    for time_index in 2:(step_count + 1)
+        fill!(empirical_covariance, 0.0)
+        for trial in 1:trials
+            configuration = rand(trial_rngs[trial], eachindex(observation_vectors))
+            _single_sensor_covariance_step!(
+                trial_covariances[trial],
+                observation_vectors[configuration],
+                measurement_variances[configuration],
+                transition_squared,
+                discrete_process_variance,
+                projected_covariances[trial],
+            )
+            empirical_covariance .+= trial_covariances[trial]
+        end
+        empirical_covariance ./= trials
+        all(isfinite, empirical_covariance) || error(
+            "Monte Carlo covariance average contains non-finite values.",
+        )
+
+        _single_sensor_bound_step!(
+            bound_covariance,
+            observation_vectors,
+            measurement_variances,
+            transition_squared,
+            discrete_process_variance,
+            bound_projection,
+            mean_correction,
+        )
+        all(isfinite, bound_covariance) || error(
+            "Discrete covariance bound contains non-finite values.",
+        )
+        _rk4_riccati_modes_step!(
+            modes,
+            information_eigenvalues,
+            continuous_parameters.drift,
+            continuous_parameters.process_variance,
+            step,
+            k1,
+            k2,
+            k3,
+            k4,
+            intermediate,
+        )
+        _covariance_from_modes!(
+            continuous_covariance, scaled_eigenvectors, eigenvectors, modes,
+        )
+
+        empirical_mean_covariance[time_index] = linear_operator(empirical_covariance)
+        discrete_bound_mean_covariance[time_index] = linear_operator(bound_covariance)
+        continuous_bound_mean_covariance[time_index] = mean(modes)
+        empirical_reference = empirical_mean_covariance[time_index]
+        discrete_reference = discrete_bound_mean_covariance[time_index]
+        isfinite(empirical_reference) && empirical_reference > 0 || error(
+            "Empirical mean covariance must be finite and positive.",
+        )
+        isfinite(discrete_reference) && discrete_reference > 0 || error(
+            "Discrete-bound mean covariance must be finite and positive.",
+        )
+        empirical_linear_operator_error = abs(
+            empirical_reference - continuous_bound_mean_covariance[time_index],
+        )
+        discrete_linear_operator_error = abs(
+            discrete_reference - continuous_bound_mean_covariance[time_index],
+        )
+        empirical_max_linear_operator_error = max(
+            empirical_max_linear_operator_error,
+            empirical_linear_operator_error,
+        )
+        discrete_max_linear_operator_error = max(
+            discrete_max_linear_operator_error,
+            discrete_linear_operator_error,
+        )
+        empirical_max_relative_linear_operator_error_percent = max(
+            empirical_max_relative_linear_operator_error_percent,
+            100 * empirical_linear_operator_error / empirical_reference,
+        )
+        discrete_max_relative_linear_operator_error_percent = max(
+            discrete_max_relative_linear_operator_error_percent,
+            100 * discrete_linear_operator_error / discrete_reference,
+        )
+        difference .= empirical_covariance .- continuous_covariance
+        empirical_max_frobenius_error = max(
+            empirical_max_frobenius_error, norm(difference),
+        )
+        difference .= bound_covariance .- continuous_covariance
+        discrete_max_frobenius_error = max(
+            discrete_max_frobenius_error, norm(difference),
+        )
+    end
+
+    return (
+        times=times,
+        empirical_mean_covariance=empirical_mean_covariance,
+        discrete_bound_mean_covariance=discrete_bound_mean_covariance,
+        continuous_bound_mean_covariance=continuous_bound_mean_covariance,
+        empirical_max_frobenius_error=empirical_max_frobenius_error,
+        discrete_max_frobenius_error=discrete_max_frobenius_error,
+        empirical_max_linear_operator_error=empirical_max_linear_operator_error,
+        discrete_max_linear_operator_error=discrete_max_linear_operator_error,
+        empirical_max_relative_linear_operator_error_percent=
+            empirical_max_relative_linear_operator_error_percent,
+        discrete_max_relative_linear_operator_error_percent=
+            discrete_max_relative_linear_operator_error_percent,
+    )
+end
+
 function continuous_covariance_bound(A::AbstractMatrix, G::AbstractMatrix, Q::AbstractMatrix)
     covariance, _, _ = arec(A', G, Q)
     return Symmetric(covariance)
@@ -150,28 +503,108 @@ function G_analytic(problem, sensor_count::Int, measurement_std::Real, step::Rea
     return Symmetric(scale .* (observation' * kernel * observation))
 end
 
+function _simulate_covariance_trial(
+    problem::STGPKFProblem,
+    data,
+    point_sets,
+    measurement_std::Real,
+    measurement_covariance,
+    seed::Int;
+    record_trajectory::Bool,
+)
+    isempty(point_sets) && throw(ArgumentError("At least one sensor configuration is required."))
+    rng = MersenneTwister(seed)
+    state = stgpkf_initialize(problem)
+    trajectory = record_trajectory ? Matrix{Float64}[] : nothing
+    for time in data.ts
+        points = point_sets[rand(rng, eachindex(point_sets))]
+        observations = [
+            measure(rng, data, point[1], point[2], time, measurement_std)
+            for point in points
+        ]
+        corrected = stgpkf_correct(
+            problem, state, points, observations, measurement_covariance,
+        )
+        state = stgpkf_predict(problem, corrected)
+        record_trajectory && push!(trajectory, Matrix(get_Σ(state)))
+    end
+    return record_trajectory ? trajectory : Matrix(get_Σ(state))
+end
+
 function simulate_expected_covariance(problem::STGPKFProblem, data, point_sets,
                                       measurement_std::Real, measurement_covariance;
                                       trials::Int, seed::Int)
     trials > 0 || throw(ArgumentError("Trial count must be positive."))
-    trajectories = Vector{Vector{Matrix{Float64}}}(undef, trials)
-    for trial in 1:trials
-        rng = MersenneTwister(seed + 1000 * trial)
-        state = stgpkf_initialize(problem)
-        trajectory = Matrix{Float64}[]
-        for time in data.ts
-            points = point_sets[rand(rng, eachindex(point_sets))]
-            observations = [
-                measure(rng, data, point[1], point[2], time, measurement_std)
-                for point in points
-            ]
-            corrected = stgpkf_correct(problem, state, points, observations, measurement_covariance)
-            state = stgpkf_predict(problem, corrected)
-            push!(trajectory, Matrix(get_Σ(state)))
-        end
-        trajectories[trial] = trajectory
-    end
+    trajectories = [
+        _simulate_covariance_trial(
+            problem,
+            data,
+            point_sets,
+            measurement_std,
+            measurement_covariance,
+            seed + 1000 * trial;
+            record_trajectory=true,
+        )
+        for trial in 1:trials
+    ]
     return expected_covariance(trajectories)
+end
+
+spatial_mean_clarity(problem, covariance) = mean(get_clarity(problem, covariance))
+
+function _expected_clarity_statistics(problem, terminal_covariances)
+    isempty(terminal_covariances) && throw(ArgumentError(
+        "At least one terminal covariance is required.",
+    ))
+    trial_clarities = spatial_mean_clarity.(Ref(problem), terminal_covariances)
+    monte_carlo_trials = length(trial_clarities)
+    sample_std = monte_carlo_trials == 1 ? 0.0 : std(trial_clarities)
+    expected_covariance_estimate = mean(terminal_covariances)
+    return (
+        expected_spatial_mean_clarity_estimate=mean(trial_clarities),
+        spatial_mean_clarity_of_expected_covariance_estimate=
+            spatial_mean_clarity(problem, expected_covariance_estimate),
+        spatial_mean_clarity_sample_std=sample_std,
+        spatial_mean_clarity_standard_error=sample_std / sqrt(monte_carlo_trials),
+        monte_carlo_trials=monte_carlo_trials,
+    )
+end
+
+"""
+    simulate_expected_clarity(
+        problem, data, point_sets, measurement_std, measurement_covariance;
+        trials, seed,
+    )
+
+Estimate the expected spatially averaged clarity at the terminal simulation
+time. Clarity is evaluated separately for every randomized sensing trial before
+the trial values are averaged. The returned
+`spatial_mean_clarity_of_expected_covariance_estimate` is the distinct surrogate
+obtained by applying clarity to the Monte Carlo mean covariance.
+"""
+function simulate_expected_clarity(
+    problem::STGPKFProblem,
+    data,
+    point_sets,
+    measurement_std::Real,
+    measurement_covariance;
+    trials::Int,
+    seed::Int,
+)
+    trials > 0 || throw(ArgumentError("Trial count must be positive."))
+    terminal_covariances = [
+        _simulate_covariance_trial(
+            problem,
+            data,
+            point_sets,
+            measurement_std,
+            measurement_covariance,
+            seed + 1000 * trial;
+            record_trajectory=false,
+        )
+        for trial in 1:trials
+    ]
+    return _expected_clarity_statistics(problem, terminal_covariances)
 end
 
 function clarity_metrics(problem::STGPKFProblemContinuous, sensor_count::Int,

@@ -1,7 +1,5 @@
 [paper]
 sensor_count = 1
-beta = 1.0
-bound_sample_count = 1000
 bound_steps = [0.02, 0.04, 0.06, 0.08, 0.10]
-steady_state_tolerance = 1e-6
-steady_state_maximum_iterations = 20000
+trajectory_step = 0.02
+monte_carlo_trials = 30
