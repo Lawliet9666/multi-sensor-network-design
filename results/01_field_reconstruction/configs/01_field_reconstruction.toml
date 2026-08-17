@@ -1,8 +1,7 @@
-bound_steps = [0.02, 0.04, 0.06, 0.08, 0.1]
-monte_carlo_trials = 30
+reconstruction_dx = 0.25
+reconstruction_sensors = 20
 seed = 1
-sensor_count = 1
-trajectory_step = 0.02
+snapshot_offset = 250
 
 [domain]
 dx = 0.5

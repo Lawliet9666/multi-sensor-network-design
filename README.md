@@ -18,8 +18,8 @@ Generate all paper results:
 julia --project=. scripts/reproduce_paper.jl
 ```
 
-This runs all seven experiments. Each experiment saves its data, figures,
-resolved configuration, and run metadata under `results/<experiment>/`. Every
+This runs all seven experiments. Each experiment saves its numerical data,
+paper PDF, and resolved configuration under `results/<experiment>/`. Every
 saved file is printed with its absolute path.
 
 Run one result only:
@@ -36,7 +36,7 @@ same experiment again updates its result files at the same paths.
 | ---------------------------------- | ------------------------------------------- |
 | `01_field_reconstruction.jl`       | Field reconstruction and clarity map        |
 | `02_clarity_vs_time.jl`            | Mean clarity over time                      |
-| `03_discrete_continuous_bounds.jl` | Discrete and continuous covariance bounds   |
+| `03_discrete_continuous_bounds.jl` | Finite-horizon covariance and bound comparison |
 | `04_grid_convergence.jl`           | Grid-convergence study                      |
 | `05_sensor_number_table.jl`        | Minimum sensor-number table                 |
 | `06_clarity_vs_sensors.jl`         | Clarity versus sensor count                 |
@@ -54,7 +54,7 @@ config/       Shared and experiment-specific parameters
 experiments/  Seven result scripts
 scripts/      All-results runner
 src/          STGPKF and covariance-bound implementation
-results/      Generated data, figures, and metadata
+results/      Latest paper data, PDFs, and resolved configurations
 ```
 
 Citation metadata is in `CITATION.cff`. The code is released under the MIT

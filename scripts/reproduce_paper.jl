@@ -3,26 +3,11 @@ using Pkg
 const REPOSITORY_ROOT = normpath(joinpath(@__DIR__, ".."))
 Pkg.activate(REPOSITORY_ROOT)
 
-using Dates
-using TOML
-
 function option_value(arguments, name, default)
     index = findfirst(==(name), arguments)
     isnothing(index) && return default
     index < length(arguments) || error("Missing value after $name")
     return arguments[index + 1]
-end
-
-function repository_revision(root)
-    try
-        git_root = readchomp(pipeline(
-            `git -C $root rev-parse --show-toplevel`; stderr=devnull,
-        ))
-        realpath(git_root) == realpath(root) || return "unversioned"
-        return readchomp(pipeline(`git -C $root rev-parse HEAD`; stderr=devnull))
-    catch
-        return "unversioned"
-    end
 end
 
 function prepare_output(arguments)
@@ -38,7 +23,10 @@ function required_outputs(output)
     return [
         joinpath(output, "01_field_reconstruction", "data", "field_reconstruction.jld2"),
         joinpath(output, "02_clarity_vs_time", "data", "mean_clarity_Nr1.jld2"),
+        joinpath(output, "02_clarity_vs_time", "data", "mean_clarity_Nr6.jld2"),
+        joinpath(output, "02_clarity_vs_time", "data", "mean_clarity_Nr20.jld2"),
         joinpath(output, "03_discrete_continuous_bounds", "data", "discrete_continuous_bounds.csv"),
+        joinpath(output, "03_discrete_continuous_bounds", "data", "discrete_continuous_trajectory.csv"),
         joinpath(output, "04_grid_convergence", "data", "grid_convergence.csv"),
         joinpath(output, "05_sensor_number_table", "data", "sensor_number_table.csv"),
         joinpath(output, "06_clarity_vs_sensors", "data", "clarity_vs_sensors.csv"),
@@ -47,28 +35,19 @@ function required_outputs(output)
         joinpath(output, "02_clarity_vs_time", "figures", "estimate_2.pdf"),
         joinpath(output, "03_discrete_continuous_bounds", "figures", "continuous_vs_discrete2.pdf"),
         joinpath(output, "04_grid_convergence", "figures", "ng_converge_clarity.pdf"),
-        joinpath(output, "06_clarity_vs_sensors", "figures", "clarity_vs_nr.pdf"),
-        joinpath(output, "07_noise_rate_tradeoff", "figures", "clarity_heatmap_Nr1.pdf"),
+        joinpath(output, "06_clarity_vs_sensors", "figures", "clarity_vs_nr_compact.pdf"),
+        joinpath(output, "07_noise_rate_tradeoff", "figures", "clarity_heatmap_Nr1_compact.pdf"),
     ]
 end
 
-function write_metadata(output, profile, config_root, commands)
-    metadata = Dict(
-        "profile" => profile,
-        "seed" => TOML.parsefile(joinpath(config_root, "common.toml"))["seed"],
-        "config_root" => abspath(config_root),
-        "resolved_config_directory" => "configs",
-        "generated_at_utc" => string(now(UTC)),
-        "julia_version" => string(VERSION),
-        "repository_revision" => repository_revision(REPOSITORY_ROOT),
-        "commands" => commands,
-    )
-    metadata_path = joinpath(output, "metadata.toml")
-    open(metadata_path, "w") do stream
-        TOML.print(stream, metadata; sorted=true)
+function generated_files(output)
+    files = String[]
+    for (directory, _, names) in walkdir(output), name in names
+        path = normpath(joinpath(directory, name))
+        relpath(path, output) == "README.md" && continue
+        push!(files, path)
     end
-    println("Saved run metadata (TOML): $(abspath(metadata_path))")
-    return abspath(metadata_path)
+    return sort(files)
 end
 
 function main(arguments=ARGS)
@@ -92,7 +71,6 @@ function main(arguments=ARGS)
     println("Experiments: $(length(experiment_files))")
     println("Output directory: $output")
 
-    metadata_paths = String[]
     julia = Base.julia_cmd()
     for (index, experiment) in enumerate(experiment_files)
         experiment_name = splitext(basename(experiment))[1]
@@ -103,13 +81,8 @@ function main(arguments=ARGS)
         withenv("GKSwstype" => "100") do
             run(command)
         end
-        push!(metadata_paths, write_metadata(
-            experiment_output, profile, config_root, [string(command)],
-        ))
     end
 
-    missing = filter(path -> !isfile(path) || filesize(path) == 0, required_outputs(output))
-    isempty(missing) || error("Reproduction finished with missing outputs: $(join(missing, ", "))")
     resolved_configs = [
         joinpath(
             output,
@@ -119,17 +92,22 @@ function main(arguments=ARGS)
         )
         for path in experiment_files
     ]
-    missing_configs = filter(path -> !isfile(path) || filesize(path) == 0, resolved_configs)
-    isempty(missing_configs) || error(
-        "Reproduction finished with missing resolved configurations: $(join(missing_configs, ", "))",
+    expected = sort(vcat(required_outputs(output), resolved_configs))
+    missing = filter(path -> !isfile(path) || filesize(path) == 0, expected)
+    isempty(missing) || error(
+        "Reproduction finished with missing or empty outputs: $(join(missing, ", "))",
+    )
+    actual = generated_files(output)
+    unexpected = setdiff(actual, expected)
+    isempty(unexpected) || error(
+        "Reproduction finished with unexpected outputs: $(join(unexpected, ", "))",
     )
     println()
     println("=== Reproduction complete ===")
     println("Profile: $profile")
     println("Experiments completed: $(length(experiment_files))/$(length(experiment_files))")
-    println("Verified result files: $(length(required_outputs(output)))")
+    println("Verified result files: $(length(expected))")
     println("Resolved configurations: $(length(resolved_configs))")
-    println("Metadata files: $(length(metadata_paths))")
     println("Output directory: $output")
     return output
 end

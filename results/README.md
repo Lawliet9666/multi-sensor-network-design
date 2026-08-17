@@ -1,27 +1,25 @@
-# Generated results
+# Paper results
 
-The experiment scripts write all generated data and figures under this
-directory and print the absolute path immediately after each file is saved.
-
-All runs use one fixed directory per experiment:
+This directory contains the latest result snapshot used by the paper. The
+experiment scripts update one fixed directory per experiment and print every
+saved file with its absolute path.
 
 ```text
 results/<experiment>/
-├── data/          # CSV and JLD2 numerical outputs
-├── figures/       # SVG and PDF figures
-├── configs/       # Resolved configuration for each experiment
-└── metadata.toml  # Added by the all-results runner
+├── data/       # CSV or JLD2 numerical result
+├── figures/    # Paper PDF, when the experiment produces a figure
+└── configs/    # Fully resolved paper configuration
 ```
 
-Running the same experiment again updates its generated files at the same
-paths. Existing historical timestamped directories are not used by new runs.
+Running the same experiment again updates the same files. Historical runs,
+SVG copies, and figures not used by the paper are intentionally excluded.
 
 | Experiment | Saved result |
 |---|---|
-| `01_field_reconstruction.jl` | Field-reconstruction JLD2 and `estimate_1` SVG/PDF |
-| `02_clarity_vs_time.jl` | One clarity JLD2 per sensor count and `estimate_2` SVG/PDF |
-| `03_discrete_continuous_bounds.jl` | Bound-comparison CSV and SVG/PDF |
-| `04_grid_convergence.jl` | Grid-convergence CSV and SVG/PDF |
+| `01_field_reconstruction.jl` | Field-reconstruction JLD2 and `estimate_1.pdf` |
+| `02_clarity_vs_time.jl` | One clarity JLD2 per agent count and `estimate_2.pdf` |
+| `03_discrete_continuous_bounds.jl` | Finite-horizon error/trajectory CSVs and `continuous_vs_discrete2.pdf` |
+| `04_grid_convergence.jl` | Grid-convergence CSV and `ng_converge_clarity.pdf` |
 | `05_sensor_number_table.jl` | Minimum-sensor table CSV |
-| `06_clarity_vs_sensors.jl` | Clarity-versus-sensors CSV and SVG/PDF |
-| `07_noise_rate_tradeoff.jl` | Clarity-grid JLD2 and heatmap SVG/PDF |
+| `06_clarity_vs_sensors.jl` | Expected-clarity CSV and `clarity_vs_nr_compact.pdf` |
+| `07_noise_rate_tradeoff.jl` | Tradeoff-grid JLD2 and `clarity_heatmap_Nr1_compact.pdf` |

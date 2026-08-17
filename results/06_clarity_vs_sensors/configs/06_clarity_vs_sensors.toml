@@ -1,8 +1,8 @@
-bound_steps = [0.02, 0.04, 0.06, 0.08, 0.1]
-monte_carlo_trials = 30
+configuration_count = 10000
+plot_target_clarity = 0.8
 seed = 1
-sensor_count = 1
-trajectory_step = 0.02
+sensor_curve = [1, 5, 10, 15, 20, 21, 25, 30, 35, 40, 45, 50]
+trials = 30
 
 [domain]
 dx = 0.5
