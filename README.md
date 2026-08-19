@@ -65,8 +65,6 @@ If you use this code, please cite the corresponding paper:
 ├── scripts/
 │   └── main.jl             # Runs and validates all seven experiments
 ├── src/                    # STGPKF, simulation, plotting, and bound code
-├── test/
-│   └── runtests.jl         # Core and paper-regression tests
 ├── Manifest-v1.11.toml     # Julia 1.11 dependency manifest
 └── Project.toml            # Package metadata and compatibility constraints
 ```
