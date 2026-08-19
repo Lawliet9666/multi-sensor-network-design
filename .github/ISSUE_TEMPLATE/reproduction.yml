@@ -8,7 +8,6 @@ body:
     attributes:
       label: Profile
       options:
-        - smoke
         - paper
         - custom configuration
     validations:

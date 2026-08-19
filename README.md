@@ -1,61 +1,61 @@
 # STGPKF Network Design
 
-Julia code for the paper “Kalman-Bucy Filtering with Randomized Sensing: Fundamental Limits and Sensor Network Design for Field Estimation.” 
+Paper "Kalman-Bucy Filtering with Randomized Sensing: Fundamental Limits and Sensor Network Design for Field Estimation."
 
-## Setup
+## Prerequisites
 
-Install Julia 1.11, then run:
+- Julia 1.11
 
-```bash
-julia --project=. -e 'using Pkg; Pkg.instantiate()'
-```
+## Getting Started
 
-## Run
-
-Generate all paper results:
+Clone the repository, enter it, and instantiate the Julia environment:
 
 ```bash
-julia --project=. scripts/reproduce_paper.jl
+git clone https://github.com/Lawliet9666/multi-sensor-network-design.git
+cd multi-sensor-network-design
+julia --startup-file=no --project=. -e 'using Pkg; Pkg.instantiate()'
 ```
 
-This runs all seven experiments. Each experiment saves its numerical data,
-paper PDF, and resolved configuration under `results/<experiment>/`. Every
-saved file is printed with its absolute path.
-
-Run one result only:
+## Quick Start
 
 ```bash
-julia --project=. experiments/03_discrete_continuous_bounds.jl
+julia --startup-file=no --project=. \
+  experiments/03_discrete_continuous_bounds.jl \
+  --output results/03_discrete_continuous_bounds
 ```
 
-Single-experiment outputs are saved under `results/<experiment>/`. Running the
-same experiment again updates its result files at the same paths.
+### Experiment Outputs
 
 
-| Script                             | Result                                      |
-| ---------------------------------- | ------------------------------------------- |
-| `01_field_reconstruction.jl`       | Field reconstruction and clarity map        |
-| `02_clarity_vs_time.jl`            | Mean clarity over time                      |
-| `03_discrete_continuous_bounds.jl` | Finite-horizon covariance and bound comparison |
-| `04_grid_convergence.jl`           | Grid-convergence study                      |
-| `05_sensor_number_table.jl`        | Minimum sensor-number table                 |
-| `06_clarity_vs_sensors.jl`         | Clarity versus sensor count                 |
-| `07_noise_rate_tradeoff.jl`        | Noise-model and sampling-interval sweep     |
+| Experiment                                                                         | Result                                           | Reference output                                                                                            |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `[01_field_reconstruction.jl](experiments/01_field_reconstruction.jl)`             | Field reconstruction and clarity map             | `[estimate_1.pdf](results/01_field_reconstruction/figures/estimate_1.pdf)`                                  |
+| `[02_clarity_vs_time.jl](experiments/02_clarity_vs_time.jl)`                       | Mean clarity over time for 1, 6, and 20 sensors  | `[estimate_2.pdf](results/02_clarity_vs_time/figures/estimate_2.pdf)`                                       |
+| `[03_discrete_continuous_bounds.jl](experiments/03_discrete_continuous_bounds.jl)` | Finite-horizon covariance and bound comparison   | `[continuous_vs_discrete2.pdf](results/03_discrete_continuous_bounds/figures/continuous_vs_discrete2.pdf)`  |
+| `[04_grid_convergence.jl](experiments/04_grid_convergence.jl)`                     | Spatial-grid convergence study                   | `[ng_converge_clarity.pdf](results/04_grid_convergence/figures/ng_converge_clarity.pdf)`                    |
+| `[05_sensor_number_table.jl](experiments/05_sensor_number_table.jl)`               | Minimum sensor count for each target clarity     | `[sensor_number_table.csv](results/05_sensor_number_table/data/sensor_number_table.csv)`                    |
+| `[06_clarity_vs_sensors.jl](experiments/06_clarity_vs_sensors.jl)`                 | Expected clarity versus sensor count             | `[clarity_vs_nr_compact.pdf](results/06_clarity_vs_sensors/figures/clarity_vs_nr_compact.pdf)`              |
+| `[07_noise_rate_tradeoff.jl](experiments/07_noise_rate_tradeoff.jl)`               | Measurement-noise and sampling-interval tradeoff | `[clarity_heatmap_Nr1_compact.pdf](results/07_noise_rate_tradeoff/figures/clarity_heatmap_Nr1_compact.pdf)` |
 
 
-Shared parameters are in `config/common.toml`; each script's `paper` parameters
-are in the matching file under `config/experiments/`. Output details are in
-`results/README.md`.
+## Citation
 
-## Repository
+
+
+## Project Structure
 
 ```text
-config/       Shared and experiment-specific parameters
-experiments/  Seven result scripts
-scripts/      All-results runner
-src/          STGPKF and covariance-bound implementation
-results/      Latest paper data, PDFs, and resolved configurations
+.
+├── config/                 # Shared and experiment-specific TOML parameters
+├── docs/assets/            # README preview generated from paper figures
+├── experiments/            # Seven supported paper experiment entry points
+├── results/                # Committed reference data, PDFs, and configurations
+├── scripts/
+│   └── reproduce_paper.jl  # Runs and validates all seven experiments
+├── src/                    # STGPKF, simulation, plotting, and bound code
+├── test/
+│   └── runtests.jl         # Core and paper-regression tests
+├── Manifest-v1.11.toml     # Julia 1.11 dependency manifest
+└── Project.toml            # Package metadata and compatibility constraints
 ```
 
-Citation metadata is in `CITATION.cff`. The code is released under the MIT
-license; see `LICENSE` and `NOTICE.md`.
