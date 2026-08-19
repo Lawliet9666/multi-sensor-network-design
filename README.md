@@ -24,6 +24,8 @@ julia --startup-file=no --project=. \
   --output results/03_discrete_continuous_bounds
 ```
 
+
+
 ### Experiment Outputs
 
 
@@ -37,6 +39,13 @@ julia --startup-file=no --project=. \
 | `[06_clarity_vs_sensors.jl](experiments/06_clarity_vs_sensors.jl)`                 | Expected clarity versus sensor count             | `[clarity_vs_nr_compact.pdf](results/06_clarity_vs_sensors/figures/clarity_vs_nr_compact.pdf)`              |
 | `[07_noise_rate_tradeoff.jl](experiments/07_noise_rate_tradeoff.jl)`               | Measurement-noise and sampling-interval tradeoff | `[clarity_heatmap_Nr1_compact.pdf](results/07_noise_rate_tradeoff/figures/clarity_heatmap_Nr1_compact.pdf)` |
 
+
+
+
+## Acknowledgments
+
+The initial STGPKF implementation used in this repository was adapted from
+[Multiagent Clarity-Based Dynamic Coverage](https://github.com/dev10110/multiagent-clarity-based-dynamic-coverage/). 
 
 ## Citation
 
@@ -55,6 +64,8 @@ If you use this code, please cite the corresponding paper:
 }
 ```
 
+
+
 ## Project Structure
 
 ```text
@@ -68,3 +79,4 @@ If you use this code, please cite the corresponding paper:
 ├── Manifest-v1.11.toml     # Julia 1.11 dependency manifest
 └── Project.toml            # Package metadata and compatibility constraints
 ```
+
