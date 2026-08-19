@@ -22,9 +22,23 @@ end
 
 function compute_grid_rows(config)
     rows = NamedTuple[]
-    for dx in config["grid_dx"]
-        problem, _, _, _, _ = build_problem(
-            config; dx=dx, dt=config["grid_dt"], continuous=true,
+    domain_max = config["domain"]["max"]
+    for grid_intervals in config["grid_intervals"]
+        dx = domain_max / grid_intervals
+        problem, xs, ys, _, _ = build_problem(
+            config;
+            dx=dx,
+            grid_intervals=grid_intervals,
+            dt=config["grid_dt"],
+            continuous=true,
+        )
+        length(xs) == grid_intervals + 1 || error("Unexpected x-grid size.")
+        length(ys) == grid_intervals + 1 || error("Unexpected y-grid size.")
+        first(xs) == 0.0 && last(xs) == domain_max || error(
+            "The x grid does not span the configured domain.",
+        )
+        first(ys) == 0.0 && last(ys) == domain_max || error(
+            "The y grid does not span the configured domain.",
         )
         cache = analytic_clarity_cache(problem)
         for sensor_count in config["grid_sensors"]

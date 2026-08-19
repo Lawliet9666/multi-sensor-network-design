@@ -103,10 +103,25 @@ function measurement_std_at_step(
 end
 
 function build_problem(
-    config; dx=config["domain"]["dx"], dt=config["simulation"]["dt"], continuous=false,
+    config;
+    dx=config["domain"]["dx"],
+    grid_intervals=nothing,
+    dt=config["simulation"]["dt"],
+    continuous=false,
 )
-    xs = collect(0.0:dx:config["domain"]["max"])
-    ys = collect(0.0:dx:config["domain"]["max"])
+    domain_max = config["domain"]["max"]
+    if isnothing(grid_intervals)
+        xs = collect(0.0:dx:domain_max)
+    else
+        grid_intervals isa Integer || throw(ArgumentError(
+            "Grid interval count must be an integer.",
+        ))
+        grid_intervals > 0 || throw(ArgumentError(
+            "Grid interval count must be positive.",
+        ))
+        xs = collect(range(0.0, domain_max; length=grid_intervals + 1))
+    end
+    ys = copy(xs)
     points = vec([@SVector[x, y] for x in xs, y in ys])
     temporal = Matern(
         1 / 2, config["temporal_kernel"]["sigma"],
