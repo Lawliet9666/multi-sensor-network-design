@@ -503,6 +503,78 @@ function G_analytic(problem, sensor_count::Int, measurement_std::Real, step::Rea
     return Symmetric(scale .* (observation' * kernel * observation))
 end
 
+"""Cached spatial spectrum for the Theorem 20 analytical design criterion."""
+struct AnalyticClarityCache
+    normalized_kernel_eigenvalues::Vector{Float64}
+    grid_count::Int
+    drift::Float64
+    output_scale::Float64
+end
+
+function analytic_clarity_cache(problem::STGPKFProblemContinuous)
+    size(problem.ss_model.A) == (1, 1) || throw(ArgumentError(
+        "The spectral clarity criterion requires a scalar temporal state.",
+    ))
+    size(problem.ss_model.C) == (1, 1) || throw(ArgumentError(
+        "The spectral clarity criterion requires C = C0 I.",
+    ))
+    drift = Float64(only(problem.ss_model.A))
+    output_scale = Float64(only(problem.ss_model.C))
+    drift < 0 || throw(ArgumentError(
+        "The spectral clarity criterion requires a stable scalar drift.",
+    ))
+    output_scale != 0 || throw(ArgumentError(
+        "The spectral clarity criterion requires a nonzero output scale.",
+    ))
+
+    grid_count = length(problem.pts)
+    kernel = kernel_matrix(problem.ks, problem.pts)
+    eigenvalues = eigvals(Symmetric(kernel ./ grid_count))
+    tolerance = 1e-10 * max(1.0, maximum(abs, eigenvalues))
+    minimum(eigenvalues) >= -tolerance || throw(ArgumentError(
+        "The spatial kernel must have nonnegative eigenvalues.",
+    ))
+    eigenvalues = max.(Float64.(eigenvalues), 0.0)
+    return AnalyticClarityCache(
+        eigenvalues,
+        grid_count,
+        drift,
+        output_scale,
+    )
+end
+
+function analytic_clarity_metrics(
+    cache::AnalyticClarityCache,
+    sensor_count::Int,
+    measurement_std::Real,
+    step::Real,
+)
+    sensor_count > 0 || throw(ArgumentError("Sensor count must be positive."))
+    measurement_std > 0 || throw(ArgumentError("Measurement noise must be positive."))
+    step > 0 || throw(ArgumentError("Sampling interval must be positive."))
+
+    sensing_intensity = sensor_count / (measurement_std^2 * step)
+    output_scale_squared = cache.output_scale^2
+    information_modes = sensing_intensity * output_scale_squared .*
+                        cache.normalized_kernel_eigenvalues
+    covariance_modes = @. inv(
+        sqrt(cache.drift^2 + information_modes) - cache.drift
+    )
+    normalized_field_modes = output_scale_squared .*
+                             cache.normalized_kernel_eigenvalues .* covariance_modes
+    mean_field_variance = sum(normalized_field_modes)
+
+    return (
+        sensor_count=sensor_count,
+        sensing_intensity=sensing_intensity,
+        mean_state_variance=mean(covariance_modes),
+        max_state_variance=maximum(covariance_modes),
+        mean_field_variance=mean_field_variance,
+        max_field_variance=cache.grid_count * maximum(normalized_field_modes),
+        mean_field_clarity=inv(1 + mean_field_variance),
+    )
+end
+
 function _simulate_covariance_trial(
     problem::STGPKFProblem,
     data,
@@ -642,5 +714,28 @@ function minimum_sensor_count(problem::STGPKFProblemContinuous, target::Real,
         end
     end
     isnothing(answer) && error("Target clarity $target is infeasible with at most $maximum sensors.")
+    return answer
+end
+
+function minimum_sensor_count(cache::AnalyticClarityCache, target::Real,
+                              measurement_std::Real, step::Real; maximum::Int=200)
+    0 < target < 1 || throw(ArgumentError("Target clarity must be in (0, 1)."))
+    low, high = 1, maximum
+    answer = nothing
+    while low <= high
+        middle = (low + high) ÷ 2
+        metrics = analytic_clarity_metrics(
+            cache, middle, measurement_std, step,
+        )
+        if metrics.mean_field_clarity >= target
+            answer = metrics
+            high = middle - 1
+        else
+            low = middle + 1
+        end
+    end
+    isnothing(answer) && error(
+        "Target clarity $target is infeasible with at most $maximum sensors.",
+    )
     return answer
 end

@@ -105,7 +105,7 @@ end
 function measurement_noise_description(context)
     measurement = context.config["measurement"]
     if context.experiment == "07_noise_rate_tradeoff"
-        return "sweep sigma_m^2 and Delta t / N_r (paper Fig. 5(b))"
+        return "sweep sigma_m^2 and Delta t / N_r (paper Fig. 4(b))"
     end
     return measurement["fix_sigma_c"] ?
         "fixed sigma_c^2 = $(measurement["sigma_c_squared"]) (revised paper)" :

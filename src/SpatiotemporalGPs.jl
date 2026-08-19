@@ -34,6 +34,7 @@ export G_from_samples, G_analytic
 export precompute_sensor_configs, sample_point_sets
 export simulate_expected_covariance, simulate_expected_clarity
 export spatial_mean_clarity, expected_covariance, linear_operator
+export AnalyticClarityCache, analytic_clarity_cache, analytic_clarity_metrics
 export clarity_metrics, minimum_sensor_count
 export load_experiment_config, measurement_std_at_step, build_problem
 export plot_field_reconstruction, plot_mean_clarity, plot_bound_comparison

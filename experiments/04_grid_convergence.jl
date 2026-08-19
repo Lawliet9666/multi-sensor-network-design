@@ -1,18 +1,15 @@
 include("common.jl")
 
-function compute_grid_case(config, dx, sensor_count)
+function compute_grid_case(config, cache, grid_count, dx, sensor_count)
     measurement_std = experiment_measurement_std(config, config["grid_dt"])
-    problem, _, _, _, _ = build_problem(
-        config; dx=dx, dt=config["grid_dt"], continuous=true,
-    )
-    metrics = clarity_metrics(
-        problem,
+    metrics = analytic_clarity_metrics(
+        cache,
         sensor_count,
         measurement_std,
         config["grid_dt"],
     )
     return (
-        Ng=length(problem.pts),
+        Ng=grid_count,
         dx=dx,
         N_robots=sensor_count,
         dt=config["grid_dt"],
@@ -24,11 +21,19 @@ function compute_grid_case(config, dx, sensor_count)
 end
 
 function compute_grid_rows(config)
-    return [
-        compute_grid_case(config, dx, sensor_count)
-        for dx in config["grid_dx"]
+    rows = NamedTuple[]
+    for dx in config["grid_dx"]
+        problem, _, _, _, _ = build_problem(
+            config; dx=dx, dt=config["grid_dt"], continuous=true,
+        )
+        cache = analytic_clarity_cache(problem)
         for sensor_count in config["grid_sensors"]
-    ]
+            push!(rows, compute_grid_case(
+                config, cache, length(problem.pts), dx, sensor_count,
+            ))
+        end
+    end
+    return rows
 end
 
 function save_grid_table(context, rows)

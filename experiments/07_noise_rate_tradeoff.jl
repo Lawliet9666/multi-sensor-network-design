@@ -5,6 +5,7 @@ function compute_tradeoff_grid(config)
         "Experiment 07 must sweep sigma_m^2 and Delta t / N_r rather than fix sigma_c^2.",
     )
     problem, _, _, _, _ = build_problem(config; continuous=true)
+    cache = analytic_clarity_cache(problem)
     measurement_variances = collect(range(
         config["measurement_variance_min"],
         config["measurement_variance_max"];
@@ -25,8 +26,8 @@ function compute_tradeoff_grid(config)
     for (row, normalized_interval) in enumerate(normalized_intervals),
         (column, measurement_variance) in enumerate(measurement_variances)
         step = normalized_interval * sensor_count
-        metrics = clarity_metrics(
-            problem,
+        metrics = analytic_clarity_metrics(
+            cache,
             sensor_count,
             sqrt(measurement_variance),
             step,

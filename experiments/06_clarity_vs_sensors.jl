@@ -2,15 +2,15 @@ include("common.jl")
 
 function compute_sensor_case(
     config,
-    continuous_problem,
+    cache,
     problem,
     data,
     sensor_count,
     index,
 )
     measurement_std = experiment_measurement_std(config)
-    metrics = clarity_metrics(
-        continuous_problem,
+    metrics = analytic_clarity_metrics(
+        cache,
         sensor_count,
         measurement_std,
         config["simulation"]["dt"],
@@ -51,11 +51,12 @@ end
 
 function compute_sensor_curve(config)
     continuous_problem, _, _, _, _ = build_problem(config; continuous=true)
+    cache = analytic_clarity_cache(continuous_problem)
     problem, _, _, data = make_field(config; seed=config["seed"])
     return [
         compute_sensor_case(
             config,
-            continuous_problem,
+            cache,
             problem,
             data,
             sensor_count,

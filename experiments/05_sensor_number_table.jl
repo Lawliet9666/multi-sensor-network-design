@@ -22,10 +22,10 @@ function simulate_expected_spatial_clarity(config, sensor_count, seed_offset)
     )
 end
 
-function compute_sensor_table_row(config, continuous_problem, target, index)
+function compute_sensor_table_row(config, cache, target, index)
     measurement_std = experiment_measurement_std(config)
     metrics = minimum_sensor_count(
-        continuous_problem,
+        cache,
         target,
         measurement_std,
         config["simulation"]["dt"],
@@ -54,8 +54,9 @@ end
 
 function compute_sensor_table(config)
     continuous_problem, _, _, _, _ = build_problem(config; continuous=true)
+    cache = analytic_clarity_cache(continuous_problem)
     return [
-        compute_sensor_table_row(config, continuous_problem, target, index)
+        compute_sensor_table_row(config, cache, target, index)
         for (index, target) in enumerate(config["sensor_targets"])
     ]
 end
