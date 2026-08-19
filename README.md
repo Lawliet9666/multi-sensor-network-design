@@ -40,22 +40,33 @@ julia --startup-file=no --project=. \
 
 ## Citation
 
+If you use this code, please cite the corresponding paper:
 
+```bibtex
+@misc{wang2025kalmanbucy,
+  title         = {Kalman-Bucy Filtering with Randomized Sensing: Fundamental Limits and Sensor Network Design for Field Estimation},
+  author        = {Xinyi Wang and Devansh R. Agrawal and Dimitra Panagou},
+  year          = {2025},
+  eprint        = {2511.03740},
+  archivePrefix = {arXiv},
+  primaryClass  = {eess.SY},
+  doi           = {10.48550/arXiv.2511.03740},
+  url           = {https://arxiv.org/abs/2511.03740}
+}
+```
 
 ## Project Structure
 
 ```text
 .
 ├── config/                 # Shared and experiment-specific TOML parameters
-├── docs/assets/            # README preview generated from paper figures
 ├── experiments/            # Seven supported paper experiment entry points
 ├── results/                # Committed reference data, PDFs, and configurations
 ├── scripts/
-│   └── reproduce_paper.jl  # Runs and validates all seven experiments
+│   └── main.jl             # Runs and validates all seven experiments
 ├── src/                    # STGPKF, simulation, plotting, and bound code
 ├── test/
 │   └── runtests.jl         # Core and paper-regression tests
 ├── Manifest-v1.11.toml     # Julia 1.11 dependency manifest
 └── Project.toml            # Package metadata and compatibility constraints
 ```
-

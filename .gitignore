@@ -4,3 +4,4 @@ gr-temp/
 *.jl.cov
 *.jl.*.cov
 lcov.info
+/test/
