@@ -2,6 +2,12 @@
 
 Paper "Kalman-Bucy Filtering with Randomized Sensing: Fundamental Limits and Sensor Network Design for Field Estimation."
 
+## Playground
+
+[Open the interactive sensor-network design playground](https://lawliet9666.github.io/multi-sensor-network-design-app/)
+
+[![Interactive sensor-network design playground](docs/assets/playground.jpg)](https://lawliet9666.github.io/multi-sensor-network-design-app/)
+
 ## Prerequisites
 
 - Julia 1.11
@@ -79,4 +85,3 @@ If you use this code, please cite the corresponding paper:
 ├── Manifest-v1.11.toml     # Julia 1.11 dependency manifest
 └── Project.toml            # Package metadata and compatibility constraints
 ```
-
